@@ -1,0 +1,17 @@
+Grej Tokenisera(källa)
+    Sätt tokens till lista
+    Sätt ord till lista
+    
+    Sätt i till 0
+    Sätt längd till 11
+    Sätt ordet till ""
+    
+    Sätt tecken till "Sätt x till 5"
+    
+    Skriv Tecken:
+    Skriv värdet av tecken
+    
+    Ge tokens
+
+Sätt resultat till Tokenisera("Sätt x till 5")
+Skriv Tokenizer färdig!
