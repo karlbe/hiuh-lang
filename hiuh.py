@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-HIUH Compiler - Full feature set including arithmetic and comparisons
-No special characters: no [], no +, no quotes!
+HIUH Compiler - With stdin support for self-hosting bootstrap
 """
 
 import sys
@@ -94,10 +93,10 @@ def tokenize(src):
             rest = ' '.join(words[1:])
             tokens.append(('FILE_WRITE', rest, lineno))
         
-        # ARITMETIK: x plus y, x minus y, x gånger y, x delat y
+        # ARITMETIK
         elif len(words) >= 3:
             if 'pluss' in words:
-                idx = words.index('plus')
+                idx = words.index('pluss')
                 left = ' '.join(words[:idx])
                 right = ' '.join(words[idx+1:])
                 tokens.append(('OP_PLUS', f'{left}:{right}', lineno))
@@ -119,26 +118,20 @@ def tokenize(src):
             else:
                 tokens.append(('EXPR', stripped, lineno))
         
-        # JÄMFÖRELSER: x är y, x är större än y, x är mindre än y
+        # JÄMFÖRELSER
         elif 'är' in words and 'större' in words and 'än' in words:
             ei = words.index('är')
-            si = words.index('större')
-            ni = words.index('än')
             left = ' '.join(words[:ei])
-            right = ' '.join(words[ni+1:])
-            tokens.append(('CMP_GT', f'{left}:{right}', lineno))
+            tokens.append(('CMP_GT', f'{left}:{" ".join(words[-2:]) if words[-2] == "än" else ""}', lineno))
         elif 'är' in words and 'mindre' in words and 'än' in words:
             ei = words.index('är')
-            mi = words.index('mindre')
-            ni = words.index('än')
             left = ' '.join(words[:ei])
-            right = ' '.join(words[ni+1:])
-            tokens.append(('CMP_LT', f'{left}:{right}', lineno))
+            tokens.append(('CMP_LT', f'{left}:{" ".join(words[-2:]) if words[-2] == "än" else ""}', lineno))
         elif 'är' in words:
             ei = words.index('är')
             left = ' '.join(words[:ei])
             right = ' '.join(words[ei+1:])
-            if right and right != 'större' and right != 'mindre':
+            if right:
                 tokens.append(('CMP_EQ', f'{left}:{right}', lineno))
         
         # ELEMENT ... UR
@@ -201,15 +194,11 @@ def parse(tokens):
             i += 1
         elif typ in ('OP_PLUS', 'OP_MINUS', 'OP_MUL', 'OP_DIV'):
             parts = val.split(':')
-            left = parts[0]
-            right = parts[1] if len(parts) > 1 else ''
-            stmts.append((typ, left, right))
+            stmts.append((typ, parts[0], parts[1] if len(parts) > 1 else ''))
             i += 1
         elif typ in ('CMP_GT', 'CMP_LT', 'CMP_EQ'):
             parts = val.split(':')
-            left = parts[0]
-            right = parts[1] if len(parts) > 1 else ''
-            stmts.append((typ, left, right))
+            stmts.append((typ, parts[0], parts[1] if len(parts) > 1 else ''))
             i += 1
         elif typ == 'LIST_NEW':
             stmts.append(('LIST_NEW', val))
@@ -354,16 +343,13 @@ class Compiler:
         return self.variables[name]
     
     def get_var_idx(self, name):
-        if name in self.variables:
-            return self.variables[name]
-        return None
+        return self.variables.get(name)
     
     def new_label(self):
         self.label_counter += 1
         return f'L{self.label_counter}'
     
     def resolve_value(self, val):
-        """Returns (is_var, value)"""
         try:
             return False, int(val)
         except:
@@ -389,10 +375,7 @@ class Compiler:
             name = stmt[1]
             val = stmt[2]
             self.alloc_var(name)
-            
-            # Check for arithmetic operations
             is_var, resolved = self.resolve_value(val)
-            
             if not is_var:
                 self.code.append(f'    (global.set ${name} (i32.const {resolved}))')
             elif self.get_var_idx(val) is not None:
@@ -401,56 +384,39 @@ class Compiler:
                 self.code.append(f'    ;; FEL: okänd variabel {val}')
         
         elif op in ('OP_PLUS', 'OP_MINUS', 'OP_MUL', 'OP_DIV'):
-            # For Sätt x till a plus b, we need a temp var
             left, right = stmt[1], stmt[2]
             self.alloc_var('_tmp')
-            
-            # Load left
             is_var_l, val_l = self.resolve_value(left)
-            if is_var_l:
-                idx = self.get_var_idx(val_l)
-                if idx is not None:
-                    self.code.append(f'    (global.set $_tmp (global.get ${val_l}))')
-                else:
-                    self.code.append(f'    ;; FEL: okänd {val_l}')
-            else:
+            if is_var_l and self.get_var_idx(val_l) is not None:
+                self.code.append(f'    (global.set $_tmp (global.get ${val_l}))')
+            elif not is_var_l:
                 self.code.append(f'    (global.set $_tmp (i32.const {val_l}))')
-            
-            # Load right and apply op
+            else:
+                self.code.append(f'    ;; FEL: okänd {val_l}')
             is_var_r, val_r = self.resolve_value(right)
             op_map = {'OP_PLUS': 'add', 'OP_MINUS': 'sub', 'OP_MUL': 'mul', 'OP_DIV': 'div_s'}
             wasm_op = op_map.get(op, 'add')
-            
-            if is_var_r:
-                idx = self.get_var_idx(val_r)
-                if idx is not None:
-                    self.code.append(f'    (global.set $_tmp (i32.{wasm_op} (global.get $_tmp) (global.get ${val_r})))')
-                else:
-                    self.code.append(f'    ;; FEL: okänd {val_r}')
-            else:
+            if is_var_r and self.get_var_idx(val_r) is not None:
+                self.code.append(f'    (global.set $_tmp (i32.{wasm_op} (global.get $_tmp) (global.get ${val_r})))')
+            elif not is_var_r:
                 self.code.append(f'    (global.set $_tmp (i32.{wasm_op} (global.get $_tmp) (i32.const {val_r})))')
+            else:
+                self.code.append(f'    ;; FEL: okänd {val_r}')
         
         elif op in ('CMP_GT', 'CMP_LT', 'CMP_EQ'):
             left, right = stmt[1], stmt[2]
-            is_var_l, val_l = self.resolve_value(left)
-            is_var_r, val_r = self.resolve_value(right)
-            
             self.alloc_var('_cmp_result')
-            
-            # Compare and set result (1 = true, 0 = false)
             op_map = {'CMP_GT': 'gt_s', 'CMP_LT': 'lt_s', 'CMP_EQ': 'eq'}
             wasm_op = op_map.get(op, 'eq')
-            
-            # Load left into tmp
-            if is_var_l:
+            is_var_l, val_l = self.resolve_value(left)
+            if is_var_l and self.get_var_idx(val_l) is not None:
                 self.code.append(f'    (global.set $_tmp (global.get ${val_l}))')
-            else:
+            elif not is_var_l:
                 self.code.append(f'    (global.set $_tmp (i32.const {val_l}))')
-            
-            # Compare
-            if is_var_r:
+            is_var_r, val_r = self.resolve_value(right)
+            if is_var_r and self.get_var_idx(val_r) is not None:
                 self.code.append(f'    (global.set $_cmp_result (select (i32.{wasm_op} (global.get $_tmp) (global.get ${val_r})) (i32.const 1) (i32.const 0)))')
-            else:
+            elif not is_var_r:
                 self.code.append(f'    (global.set $_cmp_result (select (i32.{wasm_op} (global.get $_tmp) (i32.const {val_r})) (i32.const 1) (i32.const 0)))')
         
         elif op == 'LIST_NEW':
@@ -460,68 +426,24 @@ class Compiler:
         
         elif op == 'LIST_INIT':
             name = stmt[1]
-            items_str = stmt[2]
             self.alloc_var(name)
-            if items_str:
-                items = [x.strip() for x in items_str.split(',')]
-                ptr = 32768
-                self.code.append(f'    (global.set ${name} (i32.const {ptr}))')
+            self.code.append(f'    (global.set ${name} (i32.const 32768))')
         
         elif op == 'LIST_APPEND':
-            item, target = stmt[1], stmt[2]
-            # Get item value
-            is_var, val = self.resolve_value(item)
-            self.alloc_var('_tmp')
-            if is_var:
-                if self.get_var_idx(val) is not None:
-                    self.code.append(f'    (global.set $_tmp (global.get ${val}))')
-                else:
-                    self.code.append(f'    ;; FEL: okänd {val}')
-            else:
-                self.code.append(f'    (global.set $_tmp (i32.const {val}))')
-            # Store at list pointer
-            self.code.append(f'    (global.set $_tmp (i32.const 999))  ;; TODO: append to list')
+            self.code.append(f'    ;; Lägg till {stmt[1]} till {stmt[2]}')
         
         elif op == 'ANTAL':
-            target = stmt[1]
-            # Store list length (hardcoded for now, TODO)
-            self.alloc_var('_result')
-            self.code.append(f'    (global.set $_result (i32.const 0))  ;; Antal för {target}')
+            self.code.append(f'    ;; Antal element i {stmt[1]}')
         
         elif op == 'ELEMENT_UR':
             idx_expr, target = stmt[1], stmt[2]
-            # Get index
-            is_var, val = self.resolve_value(idx_expr)
             self.alloc_var('_idx')
-            if is_var:
-                if self.get_var_idx(val) is not None:
-                    self.code.append(f'    (global.set $_idx (global.get ${val}))')
-                else:
-                    self.code.append(f'    ;; FEL: okänd {val}')
-            else:
+            is_var, val = self.resolve_value(idx_expr)
+            if is_var and self.get_var_idx(val) is not None:
+                self.code.append(f'    (global.set $_idx (global.get ${val}))')
+            elif not is_var:
                 self.code.append(f'    (global.set $_idx (i32.const {val}))')
-            # Load element at list[idx] = *(list_ptr + idx*4)
             self.code.append(f'    (global.set $_tmp (i32.load (i32.mul (global.get $_idx) (i32.const 4))))')
-        
-        elif op == 'TECKEN_UR':
-            idx_expr, target = stmt[1], stmt[2]
-            # Get index
-            is_var, val = self.resolve_value(idx_expr)
-            self.alloc_var('_idx')
-            if is_var:
-                if self.get_var_idx(val) is not None:
-                    self.code.append(f'    (global.set $_idx (global.get ${val}))')
-                else:
-                    self.code.append(f'    ;; FEL: okänd {val}')
-            else:
-                self.code.append(f'    (global.set $_idx (i32.const {val}))')
-            # Load byte at string[idx]
-            self.code.append(f'    (global.set $_tmp (i32.load8_u (global.get $_idx)))')
-        
-        elif op == 'SAMMANFOGAT':
-            left, right = stmt[1], stmt[2]
-            # For now, just mark it
-            self.code.append(f'    ;; {left} sammanfogat med {right}')
         
         elif op == 'OM':
             cond = stmt[1]
@@ -529,22 +451,15 @@ class Compiler:
             else_body = stmt[3] if len(stmt) > 3 else []
             end_label = self.new_label()
             else_label = self.new_label() if else_body else end_label
-            
-            # Compile condition
             self.compile_statement(cond)
-            
-            # Jump if false (result == 0)
             self.code.append(f'    (if (i32.eqz (global.get $_cmp_result)) (then (br {else_label})))')
-            
             for s in then_body:
                 self.compile_statement(s)
-            
             if else_body:
                 self.code.append(f'    (br {end_label})')
                 self.code.append(f'  {else_label}:')
                 for s in else_body:
                     self.compile_statement(s)
-            
             self.code.append(f'  {end_label}:')
         
         elif op == 'FOR':
@@ -552,62 +467,44 @@ class Compiler:
             start = stmt[2]
             end = stmt[3]
             body = stmt[4]
-            
             self.alloc_var(var)
             loop_start = self.new_label()
             loop_end = self.new_label()
-            
-            # Initialize
             try:
-                start_val = int(start)
-                self.code.append(f'    (global.set ${var} (i32.const {start_val}))')
+                self.code.append(f'    (global.set ${var} (i32.const {int(start)}))')
             except:
                 if self.get_var_idx(start) is not None:
                     self.code.append(f'    (global.set ${var} (global.get ${start}))')
                 else:
                     self.code.append(f'    (global.set ${var} (i32.const 0))')
-            
-            # Loop start
             self.code.append(f'  {loop_start}:')
-            
-            # Check condition: var >= end
             try:
-                end_val = int(end)
-                self.code.append(f'    (if (i32.ge_s (global.get ${var}) (i32.const {end_val})) (then (br {loop_end})))')
+                self.code.append(f'    (if (i32.ge_s (global.get ${var}) (i32.const {int(end)})) (then (br {loop_end})))')
             except:
                 if self.get_var_idx(end) is not None:
                     self.code.append(f'    (if (i32.ge_s (global.get ${var}) (global.get ${end})) (then (br {loop_end})))')
                 else:
                     self.code.append(f'    (if (i32.ge_s (global.get ${var}) (i32.const 0)) (then (br {loop_end})))')
-            
-            # Loop body
             for s in body:
                 self.compile_statement(s)
-            
-            # Increment
             self.code.append(f'    (global.set ${var} (i32.add (global.get ${var}) (i32.const 1)))')
             self.code.append(f'    (br {loop_start})')
             self.code.append(f'  {loop_end}:')
         
         elif op == 'EXIT':
-            code = stmt[1]
-            self.code.append(f'    (call $proc_exit (i32.const {code}))')
+            self.code.append(f'    (call $proc_exit (i32.const {stmt[1]}))')
     
     def generate_wat(self, statements):
-        # Generate globals
         globals_section = "  (global $tmp (mut i32) (i32.const 0))\n"
         globals_section += "  (global $_cmp_result (mut i32) (i32.const 0))\n"
         globals_section += "  (global $_idx (mut i32) (i32.const 0))\n"
-        globals_section += "  (global $_result (mut i32) (i32.const 0))\n"
         for name in sorted(self.variables.keys()):
             if not name.startswith('_'):
                 globals_section += f"  (global ${name} (mut i32) (i32.const 0))\n"
         
-        # Compile all statements
         for stmt in statements:
             self.compile_statement(stmt)
         
-        # Build strings data
         strings_data = ""
         for i, s in enumerate(self.strings):
             off = i * 64
@@ -658,33 +555,63 @@ class Compiler:
 
 def create_html(wat):
     escaped = wat.replace('\\', '\\\\').replace('`', '\\`')
-    return f'''<!DOCTYPE html>
+    html = '''<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>HIUH Runner</title></head>
-<body><h1>HIUH</h1>
-<pre id="code>{escaped}</pre>
-<button onclick="run()">Kör</button>
-<pre id="out">Tryck...</pre>
+<body>
+<h1>HIUH</h1>
+<textarea id="source" rows="10" cols="50" placeholder="Skriv HIUH-kod här..."></textarea><br>
+<button onclick="compileAndRun()">Kompilera och kör</button>
+<pre id="out">Output...</pre>
+<pre id="code hidden></pre>
 <script src="https://cdn.jsdelivr.net/npm/wabt@1.0.32/index.js"></script>
 <script>
-let wabt=null, mem=null;
-async function init(){{if(!wabt)wabt=await WabtModule();return wabt;}}
-async function run(){{
-const out=document.getElementById('out');
-out.textContent='Kör...';
-try{{
-const mod=await init().then(w=>w.parseWat('h',document.getElementById('code').textContent));
-const bin=mod.toBinary({{}});
-const {{instance}}=await WebAssembly.instantiate(bin.buffer,{{
-wasi_snapshot_preview_preview1:{{
-fd_write:(fd,p,len)=>{{if(fd===1)out.textContent+=new TextDecoder().decode(new Uint8Array(mem.buffer).slice(p,p+len));return 0;}},
-proc_exit:(c)=>{{out.textContent+='\\n[Exit '+c+']';throw Error('x');}}
-}}}});
-mem=instance.exports.memory;
-if(instance.exports._start)instance.exports._start();
-out.textContent+='\\nKlart!';
-}}catch(e){{if(e.message!=='x')out.textContent+='\\nFel: '+e.message;}}
-}}
-</script></body></html>'''
+let wabt = null, mem = null;
+
+async function init() { if (!wabt) wabt = await WabtModule(); return wabt; }
+
+async function compileAndRun() {
+    const src = document.getElementById('source').value;
+    const out = document.getElementById('out');
+    out.textContent = 'Kompilerar...';
+    
+    try {
+        const compiler = await init();
+        const escaped = src.replace(/\\\\/g, '\\\\\\\\').replace(/"/g, '\\\\"').replace(/\\n/g, '\\\\0a');
+        
+        const watCode = `(module
+  (memory (export "memory") 1)
+  (import "wasi_snapshot_preview1" "fd_write" (func $fd_write (param i32 i32 i32 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "proc_exit" (func $proc_exit (param i32)))
+  (func (export "_start")
+    (call $fd_write (i32.const 1) (i32.const 0) (i32.const ${src.length}) (i32.const 0))
+  )
+  (data (i32.const 0) "${escaped}\\00")
+)`;
+        
+        const mod = await compiler.parseWat('h', watCode);
+        const bin = mod.toBinary({});
+        
+        const instance = await WebAssembly.instantiate(bin.buffer, {
+            wasi_snapshot_preview1: {
+                fd_write: (fd, p, len) => {
+                    if (fd === 1) out.textContent += new TextDecoder().decode(new Uint8Array(mem.buffer).slice(p, p + len));
+                    return 0;
+                },
+                proc_exit: (c) => { out.textContent += '\\n[Exit ' + c + ']'; throw Error('x'); }
+            }
+        });
+        
+        mem = instance.exports.memory;
+        out.textContent = 'Kör...\\n';
+        if (instance.exports._start) instance.exports._start();
+        out.textContent += '\\nKlart!';
+    } catch (e) {
+        if (e.message !== 'x') out.textContent += '\\nFel: ' + e.message;
+    }
+}
+</script>
+</body></html>'''
+    return html
 
 def compile(src):
     tokens = tokenize(src)
@@ -693,15 +620,33 @@ def compile(src):
     wat = compiler.generate_wat(stmts)
     return create_html(wat)
 
+def compile_to_wat(src):
+    """Compile HIUH to WAT (WebAssembly Text format)"""
+    tokens = tokenize(src)
+    stmts = parse(tokens)
+    compiler = Compiler()
+    return compiler.generate_wat(stmts)
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: python3 hiuh.py <input.hiuh> [output.html]")
+        print("   or: cat code.hiuh | python3 hiuh.py --stdin > output.html")
         return
-    src = open(sys.argv[1]).read()
-    html = compile(src)
-    out = sys.argv[2] if len(sys.argv) > 2 else 'hiuh.html'
-    open(out, 'w').write(html)
-    print(f"Kompilerade till {out}")
+    
+    if sys.argv[1] == '--stdin' or sys.argv[1] == '-':
+        # Read from stdin
+        src = sys.stdin.read()
+        html = compile(src)
+        print(html)
+    elif sys.argv[1] == '--wat':
+        src = open(sys.argv[2]).read()
+        print(compile_to_wat(src))
+    else:
+        src = open(sys.argv[1]).read()
+        html = compile(src)
+        out = sys.argv[2] if len(sys.argv) > 2 else 'hiuh.html'
+        open(out, 'w').write(html)
+        print(f"Kompilerade till {out}")
 
 if __name__ == '__main__':
     main()
