@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HIUH Runner</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Courier New', monospace; background: #1a1a2e; color: #eee; padding: 15px; min-height: 100vh; }
+        h1 { color: #e94560; margin-bottom: 15px; font-size: 1.5em; }
+        .controls { margin-bottom: 15px; }
+        .btn { background: #e94560; color: white; border: none; padding: 10px 20px; margin-right: 10px; cursor: pointer; border-radius: 5px; font-size: 16px; }
+        .btn:hover { background: #ff6b6b; }
+        #output { background: #16213e; color: #0f0; padding: 15px; min-height: 120px; white-space: pre-wrap; border-radius: 8px; border: 2px solid #e94560; font-size: 14px; }
+        #code { display: none; background: #16213e; color: #4ecca3; padding: 15px; font-size: 12px; overflow-x: auto; white-space: pre-wrap; }
+        .info { color: #888; margin-top: 15px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <h1>HIUH Runner</h1>
+    <div class="controls">
+        <button class="btn" onclick="run()">Kör</button>
+        <button class="btn" onclick="toggle()">Kod</button>
+        <button class="btn" onclick="clear()">Rensa</button>
+    </div>
+    <pre id="output">Tryck "Kör" för att köra...
+</pre>
+    <pre id="code">(module
+  (memory (export "memory") 1)
+
+  (import "wasi_snapshot_preview1" "fd_write"
+    (func $fd_write (param i32 i32 i32 i32) (result i32)))
+
+  (func $print (param $p i32) (param $l i32)
+    (call $fd_write (i32.const 1) (local.get $p) (local.get $l) (i32.const 0))
+    (drop)
+  )
+
+  (func (export "_start")
+    (call $print (i32.const 0) (i32.const 11))
+    (call $print (i32.const 64) (i32.const 10))
+  )
+
+  (func (export "read") (param $i i32) (result i32)
+    (i32.load8_u (local.get $i))
+  )
+
+  (func (export "write") (param $i i32) (param $v i32)
+    (i32.store8 (local.get $i) (local.get $v))
+  )
+  (data (i32.const 0) "Hej världen\\00Det funkar\\00")
+)
+</pre>
+    <p class="info">Skicka HIUH-kod till @Klåd för kompilering!</p>
+
+    <script src="https://cdn.jsdelivr.net/npm/wabt@1.0.32/index.js"></script>
+    <script>
+        let wabt = null, mem = null;
+        
+        async function init() { if (!wabt) wabt = await WabtModule(); return wabt; }
+        
+        async function run() {
+            const out = document.getElementById('output');
+            out.textContent = 'Kör...
+';
+            try {
+                const mod = await init().then(w => w.parseWat('h.wat', document.getElementById('code').textContent));
+                const bin = mod.toBinary({});
+                const { instance } = await WebAssembly.instantiate(bin.buffer, {
+                    wasi_snapshot_preview1: {
+                        fd_write: (fd, p, l) => {
+                            if (fd === 1) {
+                                const d = new Uint8Array(mem.buffer);
+                                let n = 0;
+                                while (p + n < d.length && d[p + n]) n++;
+                                out.textContent += new TextDecoder().decode(d.slice(p, p + n));
+                            }
+                            return 0;
+                        }
+                    }
+                });
+                mem = instance.exports.memory;
+                if (instance.exports._start) instance.exports._start();
+                out.textContent += '
+Klart!';
+            } catch (e) { out.textContent += '
+Fel: ' + e.message; }
+        }
+        
+        function toggle() {
+            const c = document.getElementById('code');
+            c.style.display = c.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        function clear() { document.getElementById('output').textContent = ''; }
+    </script>
+</body>
+</html>
