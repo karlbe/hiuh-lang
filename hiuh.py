@@ -1,17 +1,38 @@
 #!/usr/bin/env python3
 """
 HIUH Compiler - Full feature set for self-hosting
-Features: Skriv, input, värdet av, listor, fil-I/O, jämförelser
+No special characters: no [], no +, no quotes!
 """
 
 import sys
+
+# Token types
+TOK_SKRIV = 'SKRIV'
+TOK_SKRIV_VAR = 'SKRIV_VAR'
+TOK_SATT = 'SATT'
+TOK_LIST_NEW = 'LIST_NEW'
+TOK_LIST_INIT = 'LIST_INIT'
+TOK_LIST_APPEND = 'LIST_APPEND'
+TOK_OM = 'OM'
+TOK_ANNARS = 'ANNARS'
+TOK_HEJDA = 'HEJDA'
+TOK_FOR = 'FOR'
+TOK_EXIT = 'EXIT'
+TOK_FILE_OPEN = 'FILE_OPEN'
+TOK_FILE_READ = 'FILE_READ'
+TOK_FILE_WRITE = 'FILE_WRITE'
+TOK_ELEMENT_UR = 'ELEMENT_UR'
+TOK_TECKEN_UR = 'TECKEN_UR'
+TOK_SAMMANFOGAT = 'SAMMANFOGAT'
+TOK_ANTAL = 'ANTAL'
+TOK_NEWLINE = 'NEWLINE'
 
 def tokenize(src):
     tokens = []
     for lineno, line in enumerate(src.split('\n'), 1):
         stripped = line.lstrip()
         if not stripped:
-            tokens.append(('NEWLINE', '', lineno))
+            tokens.append((TOK_NEWLINE, '', lineno))
             continue
         words = stripped.split()
         first = words[0]
@@ -21,9 +42,9 @@ def tokenize(src):
             rest = ' '.join(words[1:])
             if rest.startswith('värdet av '):
                 var = rest[len('värdet av '):]
-                tokens.append(('SKRIV_VAR', var.strip(), lineno))
+                tokens.append((TOK_SKRIV_VAR, var.strip(), lineno))
             else:
-                tokens.append(('SKRIV', rest, lineno))
+                tokens.append((TOK_SKRIV, rest, lineno))
         
         # SÄTT
         elif first == 'Sätt' and len(words) >= 4:
@@ -31,36 +52,36 @@ def tokenize(src):
             rest = ' '.join(words[3:])
             
             if rest == 'lista':
-                tokens.append(('LIST_NEW', var, lineno))
+                tokens.append((TOK_LIST_NEW, var, lineno))
             elif 'lista av' in rest:
                 items_start = rest.index('lista av') + len('lista av')
                 items_str = rest[items_start:].strip()
-                tokens.append(('LIST_INIT', f'{var}:{items_str}', lineno))
+                tokens.append((TOK_LIST_INIT, f'{var}:{items_str}', lineno))
             elif rest.startswith('till '):
                 val = rest[len('till '):]
-                tokens.append(('SATT', f'{var}:{val}', lineno))
+                tokens.append((TOK_SATT, f'{var}:{val}', lineno))
             else:
-                tokens.append(('SATT', f'{var}:{rest}', lineno))
+                tokens.append((TOK_SATT, f'{var}:{rest}', lineno))
         
-        # LÄGG TILL
+        # LÄGG TILL ... TILL
         elif first == 'Lägg' and len(words) >= 5:
             if words[1] == 'till':
                 item = words[2]
                 target = words[4]
-                tokens.append(('LIST_APPEND', f'{item}:{target}', lineno))
+                tokens.append((TOK_LIST_APPEND, f'{item}:{target}', lineno))
         
         # OM
         elif first == 'Om':
             cond = ' '.join(words[1:])
-            tokens.append(('OM', cond, lineno))
+            tokens.append((TOK_OM, cond, lineno))
         
         # ANNARS
         elif first == 'Annars':
-            tokens.append(('ANNARS', '', lineno))
+            tokens.append((TOK_ANNARS, '', lineno))
         
         # HEJDÅ
         elif first == 'Hejdå':
-            tokens.append(('HEJDA', '', lineno))
+            tokens.append((TOK_HEJDA, '', lineno))
         
         # FÖR
         elif first == 'För':
@@ -72,38 +93,70 @@ def tokenize(src):
                 end = ' '.join(words[ti+1:])
             except:
                 start, end = '0', '10'
-            tokens.append(('FOR', f'{var}:{start}:{end}', lineno))
+            tokens.append((TOK_FOR, f'{var}:{start}:{end}', lineno))
         
         # JAG MÅSTE GÅ NU
         elif first == 'JagMåsteGåNu':
             code = words[1] if len(words) > 1 and words[1].isdigit() else '0'
-            tokens.append(('EXIT', code, lineno))
+            tokens.append((TOK_EXIT, code, lineno))
         
         # ÖPPNA
         elif first == 'Öppna':
             rest = ' '.join(words[1:])
-            tokens.append(('FILE_OPEN', rest, lineno))
+            tokens.append((TOK_FILE_OPEN, rest, lineno))
         
         # LÄS
         elif first == 'Läs':
             if len(words) > 1:
-                tokens.append(('FILE_READ', ' '.join(words[1:]), lineno))
+                tokens.append((TOK_FILE_READ, ' '.join(words[1:]), lineno))
         
         # SKRIV TILL FIL
         elif first == 'SkrivTillFil':
             rest = ' '.join(words[1:])
-            tokens.append(('FILE_WRITE', rest, lineno))
+            tokens.append((TOK_FILE_WRITE, rest, lineno))
         
-        # JÄMFÖRELSER
-        elif first == 'Är':
-            left = words[1] if len(words) > 1 else ''
-            right = ' '.join(words[2:]) if len(words) > 2 else ''
-            tokens.append(('CMP_EQ', f'{left}:{right}', lineno))
+        # ELEMENT ... UR (list index)
+        elif 'element' in words and 'ur' in words:
+            try:
+                ei = words.index('element')
+                ui = words.index('ur')
+                idx = ' '.join(words[ei+1:ui])
+                target = ' '.join(words[ui+1:])
+                tokens.append((TOK_ELEMENT_UR, f'{idx}:{target}', lineno))
+            except:
+                pass
+        
+        # TECKEN ... UR (string index)
+        elif 'tecken' in words and 'ur' in words:
+            try:
+                ti = words.index('tecken')
+                ui = words.index('ur')
+                idx = ' '.join(words[ti+1:ui])
+                target = ' '.join(words[ui+1:])
+                tokens.append((TOK_TECKEN_UR, f'{idx}:{target}', lineno))
+            except:
+                pass
+        
+        # SAMMANFOGAT MED
+        elif 'sammanfogat' in words and 'med' in words:
+            try:
+                si = words.index('sammanfogat')
+                mi = words.index('med')
+                left = ' '.join(words[:si])
+                right = ' '.join(words[mi+1:])
+                tokens.append((TOK_SAMMANFOGAT, f'{left}:{right}', lineno))
+            except:
+                pass
+        
+        # ANTAL ELEMENT I
+        elif first == 'Antal' and len(words) >= 4 and words[2] == 'element' and words[3] == 'i':
+            target = ' '.join(words[4:])
+            tokens.append((TOK_ANTAL, target, lineno))
         
         else:
             tokens.append(('EXPR', stripped, lineno))
         
-        tokens.append(('NEWLINE', '', lineno))
+        tokens.append((TOK_NEWLINE, '', lineno))
     
     return tokens
 
@@ -113,48 +166,69 @@ def parse(tokens):
     while i < len(tokens):
         typ, val, lineno = tokens[i]
         
-        if typ == 'SKRIV':
-            stmts.append(('SKRIV', val))
+        if typ == TOK_SKRIV:
+            stmts.append((TOK_SKRIV, val))
             i += 1
-        elif typ == 'SKRIV_VAR':
-            stmts.append(('SKRIV_VAR', val))
+        elif typ == TOK_SKRIV_VAR:
+            stmts.append((TOK_SKRIV_VAR, val))
             i += 1
-        elif typ == 'SATT':
+        elif typ == TOK_SATT:
             parts = val.split(':', 1)
-            stmts.append(('SATT', parts[0], parts[1] if len(parts) > 1 else ''))
+            stmts.append((TOK_SATT, parts[0], parts[1] if len(parts) > 1 else ''))
             i += 1
-        elif typ == 'LIST_NEW':
-            stmts.append(('LIST_NEW', val))
+        elif typ == TOK_LIST_NEW:
+            stmts.append((TOK_LIST_NEW, val))
             i += 1
-        elif typ == 'LIST_INIT':
+        elif typ == TOK_LIST_INIT:
             parts = val.split(':')
-            stmts.append(('LIST_INIT', parts[0], parts[1] if len(parts) > 1 else ''))
+            stmts.append((TOK_LIST_INIT, parts[0], parts[1] if len(parts) > 1 else ''))
             i += 1
-        elif typ == 'LIST_APPEND':
+        elif typ == TOK_LIST_APPEND:
             parts = val.split(':')
-            stmts.append(('LIST_APPEND', parts[0], parts[1] if len(parts) > 1 else ''))
+            stmts.append((TOK_LIST_APPEND, parts[0], parts[1] if len(parts) > 1 else ''))
             i += 1
-        elif typ == 'OM':
+        elif typ == TOK_ELEMENT_UR:
+            parts = val.split(':')
+            idx = parts[0]
+            target = parts[1] if len(parts) > 1 else ''
+            stmts.append((TOK_ELEMENT_UR, idx, target))
+            i += 1
+        elif typ == TOK_TECKEN_UR:
+            parts = val.split(':')
+            idx = parts[0]
+            target = parts[1] if len(parts) > 1 else ''
+            stmts.append((TOK_TECKEN_UR, idx, target))
+            i += 1
+        elif typ == TOK_SAMMANFOGAT:
+            parts = val.split(':')
+            left = parts[0]
+            right = parts[1] if len(parts) > 1 else ''
+            stmts.append((TOK_SAMMANFOGAT, left, right))
+            i += 1
+        elif typ == TOK_ANTAL:
+            stmts.append((TOK_ANTAL, val))
+            i += 1
+        elif typ == TOK_OM:
             body, else_b, i = parse_if(tokens, i)
-            stmts.append(('OM', body, else_b))
-        elif typ == 'FOR':
+            stmts.append((TOK_OM, body, else_b))
+        elif typ == TOK_FOR:
             parts = val.split(':')
             var, start, end = parts[0], parts[1] if len(parts) > 1 else '0', parts[2] if len(parts) > 2 else '10'
             body, i = parse_block(tokens, i)
-            stmts.append(('FOR', var, start, end, body))
-        elif typ == 'EXIT':
-            stmts.append(('EXIT', val))
+            stmts.append((TOK_FOR, var, start, end, body))
+        elif typ == TOK_EXIT:
+            stmts.append((TOK_EXIT, val))
             i += 1
-        elif typ == 'FILE_OPEN':
-            stmts.append(('FILE_OPEN', val))
+        elif typ == TOK_FILE_OPEN:
+            stmts.append((TOK_FILE_OPEN, val))
             i += 1
-        elif typ == 'FILE_READ':
-            stmts.append(('FILE_READ', val))
+        elif typ == TOK_FILE_READ:
+            stmts.append((TOK_FILE_READ, val))
             i += 1
-        elif typ == 'FILE_WRITE':
-            stmts.append(('FILE_WRITE', val))
+        elif typ == TOK_FILE_WRITE:
+            stmts.append((TOK_FILE_WRITE, val))
             i += 1
-        elif typ == 'HEJDA':
+        elif typ == TOK_HEJDA:
             break
         else:
             i += 1
@@ -166,41 +240,52 @@ def parse_block(tokens, start_i):
     i = start_i
     while i < len(tokens):
         typ = tokens[i][0]
-        if typ == 'HEJDA':
+        if typ == TOK_HEJDA:
             i += 1
             break
-        if typ == 'SKRIV':
-            body.append(('SKRIV', tokens[i][1]))
+        if typ == TOK_SKRIV:
+            body.append((TOK_SKRIV, tokens[i][1]))
             i += 1
-        elif typ == 'SKRIV_VAR':
-            body.append(('SKRIV_VAR', tokens[i][1]))
+        elif typ == TOK_SKRIV_VAR:
+            body.append((TOK_SKRIV_VAR, tokens[i][1]))
             i += 1
-        elif typ == 'SATT':
+        elif typ == TOK_SATT:
             parts = tokens[i][1].split(':', 1)
-            body.append(('SATT', parts[0], parts[1] if len(parts) > 1 else ''))
+            body.append((TOK_SATT, parts[0], parts[1] if len(parts) > 1 else ''))
             i += 1
-        elif typ == 'LIST_NEW':
-            body.append(('LIST_NEW', tokens[i][1]))
+        elif typ == TOK_LIST_NEW:
+            body.append((TOK_LIST_NEW, tokens[i][1]))
             i += 1
-        elif typ == 'LIST_APPEND':
+        elif typ == TOK_LIST_APPEND:
             parts = tokens[i][1].split(':')
-            body.append(('LIST_APPEND', parts[0], parts[1] if len(parts) > 1 else ''))
+            body.append((TOK_LIST_APPEND, parts[0], parts[1] if len(parts) > 1 else ''))
             i += 1
-        elif typ == 'OM':
+        elif typ == TOK_ELEMENT_UR:
+            parts = tokens[i][1].split(':')
+            body.append((TOK_ELEMENT_UR, parts[0], parts[1] if len(parts) > 1 else ''))
+            i += 1
+        elif typ == TOK_SAMMANFOGAT:
+            parts = tokens[i][1].split(':')
+            body.append((TOK_SAMMANFOGAT, parts[0], parts[1] if len(parts) > 1 else ''))
+            i += 1
+        elif typ == TOK_ANTAL:
+            body.append((TOK_ANTAL, tokens[i][1]))
+            i += 1
+        elif typ == TOK_OM:
             then_b, else_b, i = parse_if(tokens, i)
-            body.append(('OM', then_b, else_b))
-        elif typ == 'FOR':
+            body.append((TOK_OM, then_b, else_b))
+        elif typ == TOK_FOR:
             parts = tokens[i][1].split(':')
             var = parts[0]
             start = parts[1] if len(parts) > 1 else '0'
             end = parts[2] if len(parts) > 2 else '10'
             loop_body, i = parse_block(tokens, i)
-            body.append(('FOR', var, start, end, loop_body))
-        elif typ == 'EXIT':
-            body.append(('EXIT', tokens[i][1]))
+            body.append((TOK_FOR, var, start, end, loop_body))
+        elif typ == TOK_EXIT:
+            body.append((TOK_EXIT, tokens[i][1]))
             i += 1
-        elif typ == 'FILE_WRITE':
-            body.append(('FILE_WRITE', tokens[i][1]))
+        elif typ == TOK_FILE_WRITE:
+            body.append((TOK_FILE_WRITE, tokens[i][1]))
             i += 1
         else:
             i += 1
@@ -212,30 +297,30 @@ def parse_if(tokens, start_i):
     i = start_i + 1
     while i < len(tokens):
         typ, val = tokens[i][0], tokens[i][1]
-        if typ == 'ANNARS':
+        if typ == TOK_ANNARS:
             i += 1
             continue
-        if typ == 'OM':
+        if typ == TOK_OM:
             nested_then, nested_else, i = parse_if(tokens, i - 1)
             then_body.extend(nested_then)
             if nested_else:
                 else_body.extend(nested_else)
             continue
-        if typ == 'HEJDA':
+        if typ == TOK_HEJDA:
             i += 1
             break
-        if typ == 'SKRIV':
-            then_body.append(('SKRIV', val))
+        if typ == TOK_SKRIV:
+            then_body.append((TOK_SKRIV, val))
             i += 1
-        elif typ == 'SKRIV_VAR':
-            then_body.append(('SKRIV_VAR', val))
+        elif typ == TOK_SKRIV_VAR:
+            then_body.append((TOK_SKRIV_VAR, val))
             i += 1
-        elif typ == 'SATT':
+        elif typ == TOK_SATT:
             parts = val.split(':', 1)
-            then_body.append(('SATT', parts[0], parts[1] if len(parts) > 1 else ''))
+            then_body.append((TOK_SATT, parts[0], parts[1] if len(parts) > 1 else ''))
             i += 1
-        elif typ == 'EXIT':
-            then_body.append(('EXIT', val))
+        elif typ == TOK_EXIT:
+            then_body.append((TOK_EXIT, val))
             i += 1
         else:
             i += 1
@@ -262,16 +347,16 @@ def generate_wat(statements):
 """
     
     for stmt in statements:
-        if stmt[0] == 'SKRIV':
+        if stmt[0] == TOK_SKRIV:
             idx = add_string(stmt[1])
             off = idx * 64
             wat += f'    (call $fd_write (i32.const 1) (i32.const {off}) (i32.const {len(stmt[1])}) (i32.const 0))\n'
-        elif stmt[0] == 'SKRIV_VAR':
+        elif stmt[0] == TOK_SKRIV_VAR:
             var = stmt[1]
             idx = add_string(f'{var}\\n')
             off = idx * 64
             wat += f'    (call $fd_write (i32.const 1) (i32.const {off}) (i32.const {len(var)+1}) (i32.const 0))\n'
-        elif stmt[0] == 'EXIT':
+        elif stmt[0] == TOK_EXIT:
             code = stmt[1] if stmt[1].isdigit() else '0'
             wat += f'    (call $proc_exit (i32.const {code}))\n'
     
