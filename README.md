@@ -16,6 +16,8 @@
 
 Istället för `Skriv "hej"` → `Skriv hej` (allt efter kommandot är texten!)
 
+För att skriva ut en variabels värde: `Skriv värdet av x`
+
 Detta gör HIUH extremt lätt att skriva på ett mobiltangentbord.
 
 ## Nyckelord
