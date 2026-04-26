@@ -9,6 +9,15 @@
 - **Hårt typat** – datatyper ska upptäckas redan vid kompilering, inte vid körning
 - **Indenteringsbaserat** – block bestäms av indentering (som Python)
 
+## Designprinciper
+
+### Inga citattecken!
+**Citattecken (`"`, `'`) är FORBIDDNa på mobil!** Inga `"hej"`, inga `'x'`.
+
+Istället för `Skriv "hej"` → `Skriv hej` (allt efter kommandot är texten!)
+
+Detta gör HIUH extremt lätt att skriva på ett mobiltangentbord.
+
 ## Nyckelord
 
 ### Variabler & Tilldelning
