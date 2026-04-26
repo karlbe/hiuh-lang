@@ -61,6 +61,17 @@ def tokenize(src):
         elif first == 'Hejdå':
             tokens.append(('HEJDA', '', lineno))
         
+        # GREJ (function definition)
+        elif first == 'Grej':
+            # "Grej Foo(a, b)"
+            rest = ' '.join(words[1:])
+            tokens.append(('GREJ', rest, lineno))
+        
+        # GE (return value)
+        elif first == 'Ge':
+            rest = ' '.join(words[1:])
+            tokens.append(('GE', rest, lineno))
+        
         # FÖR
         elif first == 'För':
             var = words[1] if len(words) > 1 else 'i'
@@ -92,6 +103,13 @@ def tokenize(src):
         elif first == 'SkrivTillFil':
             rest = ' '.join(words[1:])
             tokens.append(('FILE_WRITE', rest, lineno))
+        
+        # FUNKTIONSANROP: Foo(a, b)
+        elif '(' in stripped and ')' in stripped:
+            func_name = stripped[:stripped.index('(')].strip()
+            args_str = stripped[stripped.index('(')+1:stripped.index(')')]
+            args = [a.strip() for a in args_str.split(',')] if args_str.strip() else []
+            tokens.append(('CALL', f'{func_name}:{",".join(args)}', lineno))
         
         # ARITMETIK
         elif len(words) >= 3:
@@ -218,6 +236,13 @@ def parse(tokens):
         elif typ == 'ANTAL':
             stmts.append(('ANTAL', val))
             i += 1
+        elif typ == 'GREJ':
+            # Function definition - parse until GREJ SLUT
+            func_body, i = parse_block(tokens, i + 1)
+            stmts.append(('GREJ', val, func_body))
+        elif typ == 'CALL':
+            stmts.append(('CALL', val))
+            i += 1
         elif typ == 'OM':
             body, else_b, i = parse_if(tokens, i)
             stmts.append(('OM', body, else_b))
@@ -276,6 +301,12 @@ def parse_block(tokens, start_i):
         elif typ == 'ANTAL':
             body.append(('ANTAL', tokens[i][1]))
             i += 1
+        elif typ == 'CALL':
+            body.append(('CALL', tokens[i][1]))
+            i += 1
+        elif typ == 'GE':
+            body.append(('GE', tokens[i][1]))
+            i += 1
         elif typ == 'OM':
             then_b, else_b, i = parse_if(tokens, i)
             body.append(('OM', then_b, else_b))
@@ -332,8 +363,10 @@ class Compiler:
     def __init__(self):
         self.strings = []
         self.variables = {}
+        self.functions = {}  # name -> (params, body)
         self.next_var_idx = 0
         self.code = []
+        self.func_code = []  # Function definitions
         self.label_counter = 0
     
     def alloc_var(self, name):
@@ -348,12 +381,6 @@ class Compiler:
     def new_label(self):
         self.label_counter += 1
         return f'L{self.label_counter}'
-    
-    def resolve_value(self, val):
-        try:
-            return False, int(val)
-        except:
-            return True, val
     
     def compile_statement(self, stmt):
         op = stmt[0]
@@ -493,6 +520,36 @@ class Compiler:
         
         elif op == 'EXIT':
             self.code.append(f'    (call $proc_exit (i32.const {stmt[1]}))')
+        
+        elif op == 'GREJ':
+            # Store function definition for later
+            func_sig = stmt[1]
+            func_body = stmt[2]
+            # Extract function name and params from sig like "Foo(a, b)"
+            if '(' in func_sig and ')' in func_sig:
+                name = func_sig[:func_sig.index('(')].strip()
+                params_str = func_sig[func_sig.index('(')+1:func_sig.index(')')]
+                params = [p.strip() for p in params_str.split(',')] if params_str.strip() else []
+            else:
+                name = func_sig
+                params = []
+            self.functions[name] = (params, func_body)
+            self.code.append(f'    ;; Grej {name}({",".join(params)}) definierad')
+        
+        elif op == 'CALL':
+            # Function call - for now, just a comment
+            sig = stmt[1]
+            if ':' in sig:
+                name = sig.split(':')[0]
+                args = sig.split(':')[1].split(',') if ':' in sig else []
+            else:
+                name = sig
+                args = []
+            self.code.append(f'    ;; Anropar {name}({",".join(args)})')
+        
+        elif op == 'GE':
+            # Return value
+            self.code.append(f'    ;; Ge {stmt[1]}')
     
     def generate_wat(self, statements):
         globals_section = "  (global $tmp (mut i32) (i32.const 0))\n"
