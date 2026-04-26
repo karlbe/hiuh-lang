@@ -271,9 +271,34 @@ def parse(tokens):
             stmts.append(('ANTAL', val))
             i += 1
         elif typ == 'GREJ':
-            # Function definition - parse until HEJDA
-            func_body, i = parse_block(tokens, i + 1)
-            stmts.append(('GREJ', val, func_body))
+            # Function definition - parse until HEJDA or next GREJ
+            grej_sig = val  # Save the GREJ signature BEFORE parsing body
+            func_body = []
+            i += 1  # Skip GREJ token
+            while i < len(tokens):
+                typ, val = tokens[i][0], tokens[i][1]
+                if typ == 'HEJDA' or typ == 'GREJ':
+                    i += 1 if typ == 'HEJDA' else 0
+                    break
+                if typ == 'SKRIV':
+                    func_body.append(('SKRIV', val))
+                    i += 1
+                elif typ == 'SATT':
+                    parts = val.split(':', 1)
+                    func_body.append(('SATT', parts[0], parts[1] if len(parts) > 1 else ''))
+                    i += 1
+                elif typ == 'OP_PLUS':
+                    func_body.append(('OP_PLUS', val.split(':')[0], val.split(':')[1] if ':' in val else ''))
+                    i += 1
+                elif typ == 'OP_MINUS':
+                    func_body.append(('OP_MINUS', val.split(':')[0], val.split(':')[1] if ':' in val else ''))
+                    i += 1
+                elif typ == 'GE':
+                    func_body.append(('GE', val))
+                    i += 1
+                else:
+                    i += 1
+            stmts.append(('GREJ', grej_sig, func_body))  # Use saved signature!
         elif typ == 'CALL':
             stmts.append(('CALL', val))
             i += 1
@@ -428,6 +453,55 @@ class Compiler:
         except:
             return True, val
     
+    def compile_statement_to_func(self, stmt, func_lines, func_locals=None):
+        """Compile a statement to function code"""
+        if func_locals is None:
+            func_locals = set()
+        op = stmt[0]
+        
+        if op == 'SATT':
+            name = stmt[1]
+            val = stmt[2]
+            # Check if value is an arithmetic expression like "x pluss x"
+            if 'pluss' in val:
+                parts = val.split('pluss')
+                left = parts[0].strip()
+                right = parts[1].strip() if len(parts) > 1 else '0'
+                func_lines.append(f'    (local.set ${name} (i32.add (local.get ${left}) (local.get ${right})))')
+            elif 'minus' in val:
+                parts = val.split('minus')
+                left = parts[0].strip()
+                right = parts[1].strip() if len(parts) > 1 else '0'
+                func_lines.append(f'    (local.set ${name} (i32.sub (local.get ${left}) (local.get ${right})))')
+            else:
+                try:
+                    num = int(val)
+                    func_lines.append(f'    (local.set ${name} (i32.const {num}))')
+                except:
+                    func_lines.append(f'    (local.set ${name} (local.get ${val}))')
+        
+        elif op == 'GE':
+            val = stmt[1]
+            func_lines.append(f'    (local.get ${val})')
+        
+        elif op == 'SKRIV':
+            s = stmt[1]
+            off = len(self.strings) * 64
+            self.strings.append(s)
+            func_lines.append(f'    (call $fd_write (i32.const 1) (i32.const {off}) (i32.const {len(s)}) (i32.const 0))')
+        
+        elif op == 'CALL':
+            sig = stmt[1]
+            if ':' in sig:
+                name = sig.split(':')[0]
+                args_str = sig.split(':')[1]
+                args = args_str.split(',') if args_str else []
+            else:
+                name = sig
+                args = []
+            arg_vals = [f'(local.get ${a.strip()})' for a in args]
+            func_lines.append(f'    (local.set $_tmp (call ${name} {" ".join(arg_vals)}))')
+    
     def compile_statement(self, stmt):
         op = stmt[0]
         
@@ -568,19 +642,31 @@ class Compiler:
             self.code.append(f'    (call $proc_exit (i32.const {stmt[1]}))')
         
         elif op == 'GREJ':
-            # Store function definition for later
+            # Generate WASM function immediately
             func_sig = stmt[1]
             func_body = stmt[2]
-            # Extract function name and params from sig like "Foo(a, b)"
-            if '(' in func_sig and ')' in func_sig:
-                name = func_sig[:func_sig.index('(')].strip()
-                params_str = func_sig[func_sig.index('(')+1:func_sig.index(')')]
-                params = [p.strip() for p in params_str.split(',')] if params_str.strip() else []
+            # Extract function name and params from sig like "foo:x,y"
+            if ':' in func_sig:
+                name = func_sig.split(':')[0]
+                params_str = func_sig.split(':')[1]
+                params = params_str.split(',') if params_str else []
             else:
                 name = func_sig
                 params = []
-            self.functions[name] = (params, func_body)
-            self.code.append(f'    ;; Grej {name}({",".join(params)}) definierad')
+            
+            # Track function locals (params are also locals)
+            func_locals = set(params)
+            
+            # Generate WASM function
+            func_lines = [f'  (func ${name} (result i32)']
+            for p in params:
+                func_lines.append(f'    (param ${p} i32)')
+            # Copy body and compile it with this function's context
+            for s in func_body:
+                self.compile_statement_to_func(s, func_lines, func_locals)
+            func_lines.append('    (i32.const 0)  ;; default return')
+            func_lines.append('  )')
+            self.func_code.append('\n'.join(func_lines))
         
         elif op == 'CALL':
             # Function call: name:arg1,arg2
@@ -593,17 +679,26 @@ class Compiler:
                 name = sig
                 args = []
             
-            # Handle infix operators specially
-            if '_' in name:
-                # e.g. "sammanfogat_med" - need to swap args
-                actual_name = name  # already has underscore
-                if len(args) >= 2:
-                    # infix: a sammanfogat med b → sammanfogat_met(b, a)
-                    args = [args[1], args[0]]
-                self.code.append(f'    (call ${actual_name} {" ".join(f"(global.get ${a})" if self.get_var_idx(a.strip()) is not None else f"(i32.const {a.strip()})" for a in args)})')
-            else:
-                # Normal function call
-                self.code.append(f'    (call ${name} {" ".join(f"(global.get ${a})" if self.get_var_idx(a.strip()) is not None else f"(i32.const {a.strip()})" for a in args)})')
+            # Build argument list
+            arg_vals = []
+            for a in args:
+                a = a.strip()
+                if self.get_var_idx(a) is not None:
+                    arg_vals.append(f'(global.get ${a})')
+                else:
+                    try:
+                        arg_vals.append(f'(i32.const {int(a)})')
+                    except:
+                        arg_vals.append(f'(i32.const 0)')
+            
+            self.code.append(f'    (setglobal $tmp (call ${name} {" ".join(arg_vals)}))')
+        
+        elif op == 'CALL_INFIX':
+            # a foo_met b → foo_met(b, a)
+            name = stmt[1]
+            arg1 = stmt[2]
+            arg2 = stmt[3]
+            self.code.append(f'    (setglobal $tmp (call ${name} (global.get ${arg2}) (global.get ${arg1})))')
         
         elif op == 'GE':
             # Return value - store in special return global
@@ -649,6 +744,7 @@ class Compiler:
             strings_data += f'    (data (i32.const {off}) "{escaped}\\00")\n'
         
         code_str = '\n'.join(self.code)
+        funcs_str = '\n\n'.join(self.func_code)
         
         return f"""(module
   (memory (export "memory") 1)
@@ -659,6 +755,8 @@ class Compiler:
     (func $proc_exit (param i32)))
 
 {globals_section}
+{funcs_str}
+
   (func $print_i32 (param $v i32)
     (local $buf i32)
     (local $i i32)
