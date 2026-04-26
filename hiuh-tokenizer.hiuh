@@ -1,10 +1,11 @@
-# Minimal tokenizer - bygger ord från input
+# Simple tokenizer - reads input and compares char codes
 Läs
-. Loopa igenom alla tecken
-Sätt max_tecken till 64
-För i från 0 till max_tecken
+För i från 0 till 10
     tecken i ur källa
-    . r15 = tecken på position i
-    . TODO: bygg ord genom att jämföra med mellanslag
+    Sätt tecken_kod till tecken
+    Sätt cc till tecken_kod
+    Om cc är mindre än 32
+        Skriv Sp
+    Hejdå
 Hejdå
-Skriv Klart
+Skriv Klar

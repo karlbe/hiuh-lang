@@ -24,6 +24,9 @@ def tokenize(src):
                 tokens.append(('SKRIV_VAR', words[-1]))
             else:
                 tokens.append(('SKRIV', rest))
+        elif first == '.':
+            # Comment line - skip
+            continue
         elif first == 'Sätt' and len(words) >= 4:
             var = words[1]
             rest = ' '.join(words[3:])
@@ -94,6 +97,8 @@ def tokenize(src):
                 tokens.append(('IF',))
         
         elif first == 'Annars':
+            # ELSE is handled by the IF parser - don't create token here
+            # Just mark that we're in an else block for the next Skriv/etc
             tokens.append(('ELSE',))
         
         elif 'är' in words and 'mindre' in words and 'än' in words:
@@ -172,9 +177,11 @@ def parse(tokens):
                 if tokens[j][0] == 'END':
                     break
             
-            # Generate comparison first
+            # Generate comparison first (from tok[1:4])
+            cmp_info = None
             if len(tok) >= 4:
                 cmp_type, var1, var2 = tok[1], tok[2], tok[3]
+                cmp_info = (cmp_type, var1, var2)
                 if cmp_type == 'LT':
                     stmts.append(('CMP_LT', var1, var2))
                 elif cmp_type == 'GT':
@@ -191,7 +198,7 @@ def parse(tokens):
             
             if has_else:
                 # IF with ELSE
-                stmts.append(('IF', body, True))
+                stmts.append(('IF', body, cmp_info, '__HAS_ELSE__'))
                 if i < len(tokens) and tokens[i][0] == 'ELSE':
                     i += 1  # skip ELSE token
                     else_body = []
@@ -203,7 +210,7 @@ def parse(tokens):
                     stmts.append(('ELSE', else_body))
             else:
                 # Plain IF
-                stmts.append(('IF', body))
+                stmts.append(('IF', body, cmp_info))
                 if i < len(tokens) and tokens[i][0] == 'END':
                     i += 1
         
@@ -247,6 +254,9 @@ def compile_to_asm(stmts):
         return f'L{labels[0]}'
     
     def resolve(v):
+        # Special case: 'tecken' is always in r15 (last CHAR_AT result)
+        if v == 'tecken' or v == '_tecken':
+            return '%r15'
         try:
             return f'${int(v)}'
         except:
@@ -324,20 +334,20 @@ def compile_to_asm(stmts):
             code.append(f"{loop_end}:")
         
         elif op == 'IF':
-            # Check if this IF has an else clause (stmt[2] == True)
-            has_else = len(stmt) > 2 and stmt[2] == True
+            print(f"DEBUG compile IF: stmt={stmt}")
+            # stmt = ('IF', body, cmp_info) or ('IF', body, cmp_info, '__HAS_ELSE__')
+            has_else = len(stmt) > 3 and stmt[3] == '__HAS_ELSE__'
             body = stmt[1]
+            cmp_info = stmt[2] if len(stmt) > 2 else None
             if_end = new_label()
             code.append(f"    cmp $0, %al  # if")
             code.append(f"    je {if_end}")
             for s in body:
                 compile_stmt(s)
             if has_else:
-                # Add unconditional jump to skip else body
                 else_end = new_label()
                 code.append(f"    jmp {else_end}")
                 code.append(f"{if_end}:")
-                # ELSE body will be compiled by ELSE handler after this
             else:
                 code.append(f"{if_end}:")
         
@@ -348,11 +358,12 @@ def compile_to_asm(stmts):
         
         elif op == 'ELSE':
             # ELSE body - execute unconditionally after IF
-            body = stmt[1]
+            body = stmt[1] if len(stmt) > 1 else []
             for s in body:
                 compile_stmt(s)
-            # Add L2 end label (referenced by IF's jmp)
-            code.append(f"L2:")
+            # Add ELSE end label (referenced by IF's jmp)
+            else_end = new_label()
+            code.append(f"{else_end}:")
         
         elif op == 'APPEND':
             item, target = stmt[1], stmt[2]
@@ -375,19 +386,19 @@ def compile_to_asm(stmts):
             code.append(f"    sete %al")
         
         elif op == 'CMP_LT':
-            # "x är mindre än y" → var1 < var2 → var2 > var1
+            # "x är mindre än y" → var1 < var2
             var1, var2 = stmt[1], stmt[2]
-            r1 = var_reg.get(var1, '%r12')
-            r2 = var_reg.get(var2, '%r12')
-            code.append(f"    mov {r2}, %rax  # cmp_lt {var1} < {var2}")
-            code.append(f"    cmp {r1}, %rax")
-            code.append(f"    setg %al  # om {var2} > {var1}")
+            r1 = resolve(var1)
+            r2 = resolve(var2)
+            code.append(f"    mov {r1}, %rax  # cmp_lt {var1} < {var2}")
+            code.append(f"    cmp {r2}, %rax")
+            code.append(f"    setl %al")
         
         elif op == 'CMP_GT':
             # "x är större än y" → var1 > var2
             var1, var2 = stmt[1], stmt[2]
-            r1 = var_reg.get(var1, '%r12')
-            r2 = var_reg.get(var2, '%r12')
+            r1 = resolve(var1)
+            r2 = resolve(var2)
             code.append(f"    mov {r1}, %rax  # cmp_gt {var1} > {var2}")
             code.append(f"    cmp {r2}, %rax")
             code.append(f"    setg %al")
@@ -413,6 +424,9 @@ def compile_to_asm(stmts):
             code.append(f"    lea input_buf(%rip), %rsi")
             code.append(f"    add %rcx, %rsi")
             code.append(f"    mov (%rsi), %r15b  # character at index")
+            # Track last char in a pseudo-variable
+            var_reg['_tecken'] = '%r15'
+            var_reg['tecken'] = '%r15'  # also as "tecken" for compatibility
     
     has_exit = False
     for stmt in stmts:
