@@ -12,7 +12,7 @@
 ## Designprinciper
 
 ### Inga citattecken!
-**Citattecken (`"`, `'`) är FORBIDDNa på mobil!** Inga `"hej"`, inga `'x'`.
+**Citattecken (`"`, `'`) är JÄVULENS PÅFUND!** Förbjudna. Inga `"hej"`, inga `'x'`.
 
 Istället för `Skriv "hej"` → `Skriv hej` (allt efter kommandot är texten!)
 
