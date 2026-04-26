@@ -147,8 +147,49 @@ def parse(tokens):
             body = []
             i += 1
             while i < len(tokens) and tokens[i][0] != 'END':
-                body.append(tokens[i])
-                i += 1
+                tok2 = tokens[i]
+                if tok2[0] == 'IF':
+                    # Handle IF with its ELSE/END
+                    has_else = False
+                    for j in range(i+1, len(tokens)):
+                        if tokens[j][0] == 'ELSE':
+                            has_else = True
+                            break
+                        if tokens[j][0] == 'END':
+                            break
+                    # Generate CMP statement first
+                    if len(tok2) >= 4:
+                        cmp_type, var1, var2 = tok2[1], tok2[2], tok2[3]
+                        if cmp_type == 'LT':
+                            body.append(('CMP_LT', var1, var2))
+                        elif cmp_type == 'GT':
+                            body.append(('CMP_GT', var1, var2))
+                        else:
+                            body.append(('CMP', var1, var2))
+                    # Parse IF body
+                    if_body = []
+                    i += 1
+                    while i < len(tokens) and tokens[i][0] not in ('END', 'ELSE'):
+                        if_body.append(tokens[i])
+                        i += 1
+                    if has_else:
+                        body.append(('IF', if_body, '__HAS_ELSE__'))
+                        if i < len(tokens) and tokens[i][0] == 'ELSE':
+                            i += 1  # skip ELSE token
+                            else_body = []
+                            while i < len(tokens) and tokens[i][0] != 'END':
+                                else_body.append(tokens[i])
+                                i += 1
+                            if i < len(tokens) and tokens[i][0] == 'END':
+                                i += 1
+                            body.append(('ELSE', else_body))
+                    else:
+                        body.append(('IF', if_body))
+                        if i < len(tokens) and tokens[i][0] == 'END':
+                            i += 1
+                else:
+                    body.append(tok2)
+                    i += 1
             if i < len(tokens) and tokens[i][0] == 'END':
                 i += 1
             stmts.append(('FOR', tok[1], tok[2], tok[3], body))
@@ -334,7 +375,6 @@ def compile_to_asm(stmts):
             code.append(f"{loop_end}:")
         
         elif op == 'IF':
-            print(f"DEBUG compile IF: stmt={stmt}")
             # stmt = ('IF', body, cmp_info) or ('IF', body, cmp_info, '__HAS_ELSE__')
             has_else = len(stmt) > 3 and stmt[3] == '__HAS_ELSE__'
             body = stmt[1]
