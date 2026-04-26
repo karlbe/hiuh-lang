@@ -1,66 +1,70 @@
 #!/usr/bin/env python3
 """
-HIUH Compiler - Full sentences, no quotes, indentation-based
-Mobile-friendly Swedish programming language!
+HIUH Compiler - Full feature set for self-hosting
+Features: Skriv, input, värdet av, listor, fil-I/O, jämförelser
 """
 
 import sys
-from typing import *
-
-class PrintStmt:
-    def __init__(self, text):
-        self.text = text
-
-class Assign:
-    def __init__(self, name, value):
-        self.name = name
-        self.value = value
-
-class IfStmt:
-    def __init__(self, cond, then_body, else_body):
-        self.cond = cond
-        self.then_body = then_body
-        self.else_body = else_body
-
-class ForStmt:
-    def __init__(self, var, start, end, body):
-        self.var = var
-        self.start = start
-        self.end = end
-        self.body = body
 
 def tokenize(src):
     tokens = []
-    lines = src.split('\n')
-    
-    for lineno, line in enumerate(lines, 1):
+    for lineno, line in enumerate(src.split('\n'), 1):
         stripped = line.lstrip()
-        
         if not stripped:
             tokens.append(('NEWLINE', '', lineno))
             continue
-        
         words = stripped.split()
         first = words[0]
         
+        # SKRIV
         if first == 'Skriv':
-            tokens.append(('SKRIV', ' '.join(words[1:]), lineno))
+            rest = ' '.join(words[1:])
+            if rest.startswith('värdet av '):
+                var = rest[len('värdet av '):]
+                tokens.append(('SKRIV_VAR', var.strip(), lineno))
+            else:
+                tokens.append(('SKRIV', rest, lineno))
+        
+        # SÄTT
         elif first == 'Sätt' and len(words) >= 4:
             var = words[1]
-            if 'till' in words:
-                idx = words.index('till')
-                val = ' '.join(words[idx+1:])
+            rest = ' '.join(words[3:])
+            
+            if rest == 'lista':
+                tokens.append(('LIST_NEW', var, lineno))
+            elif 'lista av' in rest:
+                items_start = rest.index('lista av') + len('lista av')
+                items_str = rest[items_start:].strip()
+                tokens.append(('LIST_INIT', f'{var}:{items_str}', lineno))
+            elif rest.startswith('till '):
+                val = rest[len('till '):]
+                tokens.append(('SATT', f'{var}:{val}', lineno))
             else:
-                val = ' '.join(words[3:])
-            tokens.append(('SATT', f'{var}:{val}', lineno))
+                tokens.append(('SATT', f'{var}:{rest}', lineno))
+        
+        # LÄGG TILL
+        elif first == 'Lägg' and len(words) >= 5:
+            if words[1] == 'till':
+                item = words[2]
+                target = words[4]
+                tokens.append(('LIST_APPEND', f'{item}:{target}', lineno))
+        
+        # OM
         elif first == 'Om':
-            tokens.append(('OM', ' '.join(words[1:]), lineno))
+            cond = ' '.join(words[1:])
+            tokens.append(('OM', cond, lineno))
+        
+        # ANNARS
         elif first == 'Annars':
-            tokens.append(('ANNARS', ' '.join(words[1:]), lineno))
+            tokens.append(('ANNARS', '', lineno))
+        
+        # HEJDÅ
         elif first == 'Hejdå':
             tokens.append(('HEJDA', '', lineno))
-        elif first == 'För' and len(words) >= 5:
-            var = words[1]
+        
+        # FÖR
+        elif first == 'För':
+            var = words[1] if len(words) > 1 else 'i'
             try:
                 fi = words.index('från')
                 ti = words.index('till')
@@ -69,9 +73,33 @@ def tokenize(src):
             except:
                 start, end = '0', '10'
             tokens.append(('FOR', f'{var}:{start}:{end}', lineno))
-        elif ':=' in stripped:
-            var, val = stripped.split(':=')
-            tokens.append(('SATT', f'{var.strip()}:{val.strip()}', lineno))
+        
+        # JAG MÅSTE GÅ NU
+        elif first == 'JagMåsteGåNu':
+            code = words[1] if len(words) > 1 and words[1].isdigit() else '0'
+            tokens.append(('EXIT', code, lineno))
+        
+        # ÖPPNA
+        elif first == 'Öppna':
+            rest = ' '.join(words[1:])
+            tokens.append(('FILE_OPEN', rest, lineno))
+        
+        # LÄS
+        elif first == 'Läs':
+            if len(words) > 1:
+                tokens.append(('FILE_READ', ' '.join(words[1:]), lineno))
+        
+        # SKRIV TILL FIL
+        elif first == 'SkrivTillFil':
+            rest = ' '.join(words[1:])
+            tokens.append(('FILE_WRITE', rest, lineno))
+        
+        # JÄMFÖRELSER
+        elif first == 'Är':
+            left = words[1] if len(words) > 1 else ''
+            right = ' '.join(words[2:]) if len(words) > 2 else ''
+            tokens.append(('CMP_EQ', f'{left}:{right}', lineno))
+        
         else:
             tokens.append(('EXPR', stripped, lineno))
         
@@ -82,25 +110,50 @@ def tokenize(src):
 def parse(tokens):
     stmts = []
     i = 0
-    
     while i < len(tokens):
         typ, val, lineno = tokens[i]
         
         if typ == 'SKRIV':
-            stmts.append(PrintStmt(val))
+            stmts.append(('SKRIV', val))
+            i += 1
+        elif typ == 'SKRIV_VAR':
+            stmts.append(('SKRIV_VAR', val))
             i += 1
         elif typ == 'SATT':
+            parts = val.split(':', 1)
+            stmts.append(('SATT', parts[0], parts[1] if len(parts) > 1 else ''))
+            i += 1
+        elif typ == 'LIST_NEW':
+            stmts.append(('LIST_NEW', val))
+            i += 1
+        elif typ == 'LIST_INIT':
             parts = val.split(':')
-            stmts.append(Assign(parts[0], parts[1] if len(parts) > 1 else ''))
+            stmts.append(('LIST_INIT', parts[0], parts[1] if len(parts) > 1 else ''))
+            i += 1
+        elif typ == 'LIST_APPEND':
+            parts = val.split(':')
+            stmts.append(('LIST_APPEND', parts[0], parts[1] if len(parts) > 1 else ''))
             i += 1
         elif typ == 'OM':
-            then_b, else_b, i = parse_if(tokens, i)
-            stmts.append(IfStmt(val, then_b, else_b))
+            body, else_b, i = parse_if(tokens, i)
+            stmts.append(('OM', body, else_b))
         elif typ == 'FOR':
             parts = val.split(':')
             var, start, end = parts[0], parts[1] if len(parts) > 1 else '0', parts[2] if len(parts) > 2 else '10'
             body, i = parse_block(tokens, i)
-            stmts.append(ForStmt(var, start, end, body))
+            stmts.append(('FOR', var, start, end, body))
+        elif typ == 'EXIT':
+            stmts.append(('EXIT', val))
+            i += 1
+        elif typ == 'FILE_OPEN':
+            stmts.append(('FILE_OPEN', val))
+            i += 1
+        elif typ == 'FILE_READ':
+            stmts.append(('FILE_READ', val))
+            i += 1
+        elif typ == 'FILE_WRITE':
+            stmts.append(('FILE_WRITE', val))
+            i += 1
         elif typ == 'HEJDA':
             break
         else:
@@ -109,88 +162,87 @@ def parse(tokens):
     return stmts
 
 def parse_block(tokens, start_i):
-    """Parse until HEJDA"""
     body = []
     i = start_i
-    
     while i < len(tokens):
-        typ, val = tokens[i][0], tokens[i][1]
-        
+        typ = tokens[i][0]
         if typ == 'HEJDA':
             i += 1
             break
-        elif typ == 'SKRIV':
-            body.append(PrintStmt(val))
+        if typ == 'SKRIV':
+            body.append(('SKRIV', tokens[i][1]))
+            i += 1
+        elif typ == 'SKRIV_VAR':
+            body.append(('SKRIV_VAR', tokens[i][1]))
             i += 1
         elif typ == 'SATT':
-            parts = val.split(':')
-            body.append(Assign(parts[0], parts[1] if len(parts) > 1 else ''))
+            parts = tokens[i][1].split(':', 1)
+            body.append(('SATT', parts[0], parts[1] if len(parts) > 1 else ''))
             i += 1
+        elif typ == 'LIST_NEW':
+            body.append(('LIST_NEW', tokens[i][1]))
+            i += 1
+        elif typ == 'LIST_APPEND':
+            parts = tokens[i][1].split(':')
+            body.append(('LIST_APPEND', parts[0], parts[1] if len(parts) > 1 else ''))
+            i += 1
+        elif typ == 'OM':
+            then_b, else_b, i = parse_if(tokens, i)
+            body.append(('OM', then_b, else_b))
         elif typ == 'FOR':
-            parts = val.split(':')
+            parts = tokens[i][1].split(':')
             var = parts[0]
             start = parts[1] if len(parts) > 1 else '0'
             end = parts[2] if len(parts) > 2 else '10'
             loop_body, i = parse_block(tokens, i)
-            body.append(ForStmt(var, start, end, loop_body))
+            body.append(('FOR', var, start, end, loop_body))
+        elif typ == 'EXIT':
+            body.append(('EXIT', tokens[i][1]))
+            i += 1
+        elif typ == 'FILE_WRITE':
+            body.append(('FILE_WRITE', tokens[i][1]))
+            i += 1
         else:
             i += 1
-    
     return body, i
 
 def parse_if(tokens, start_i):
-    """Parse if/else block - iterative"""
     then_body = []
     else_body = []
-    i = start_i + 1  # skip OM
-    
+    i = start_i + 1
     while i < len(tokens):
         typ, val = tokens[i][0], tokens[i][1]
-        
         if typ == 'ANNARS':
             i += 1
-            # Check for "Annars om X"
-            if i < len(tokens) and tokens[i][0] == 'OM':
-                # This is "else if" - parse inner if into then_body only
-                inner_then, inner_else, i = parse_if(tokens, i - 1)
-                # In "else if", the "else" part becomes current else_body
-                if inner_else:
-                    # Merge inner else into current else
-                    else_body.extend(inner_else)
-                else:
-                    else_body.extend(inner_then)
             continue
-        
         if typ == 'OM':
-            # New if starts - this would be after "else", need HEJDA first
-            break
-        
+            nested_then, nested_else, i = parse_if(tokens, i - 1)
+            then_body.extend(nested_then)
+            if nested_else:
+                else_body.extend(nested_else)
+            continue
         if typ == 'HEJDA':
             i += 1
             break
-        
         if typ == 'SKRIV':
-            then_body.append(PrintStmt(val))
+            then_body.append(('SKRIV', val))
+            i += 1
+        elif typ == 'SKRIV_VAR':
+            then_body.append(('SKRIV_VAR', val))
             i += 1
         elif typ == 'SATT':
-            parts = val.split(':')
-            then_body.append(Assign(parts[0], parts[1] if len(parts) > 1 else ''))
+            parts = val.split(':', 1)
+            then_body.append(('SATT', parts[0], parts[1] if len(parts) > 1 else ''))
             i += 1
-        elif typ == 'FOR':
-            parts = val.split(':')
-            var = parts[0]
-            start = parts[1] if len(parts) > 1 else '0'
-            end = parts[2] if len(parts) > 2 else '10'
-            loop_body, i = parse_block(tokens, i)
-            then_body.append(ForStmt(var, start, end, loop_body))
+        elif typ == 'EXIT':
+            then_body.append(('EXIT', val))
+            i += 1
         else:
             i += 1
-    
     return then_body, else_body, i
 
-def compile_to_wasm(statements):
+def generate_wat(statements):
     strings = []
-    
     def add_string(s):
         if s not in strings:
             strings.append(s)
@@ -201,124 +253,83 @@ def compile_to_wasm(statements):
 
   (import "wasi_snapshot_preview1" "fd_write"
     (func $fd_write (param i32 i32 i32 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "proc_exit"
+    (func $proc_exit (param i32)))
 
-  (func $print (param $p i32) (param $l i32)
-    (call $fd_write (i32.const 1) (local.get $p) (local.get $l) (i32.const 0))
-    (drop)
-  )
+  (global $heap_ptr (mut i32) (i32.const 32768))
 
   (func (export "_start")
 """
     
     for stmt in statements:
-        if isinstance(stmt, PrintStmt):
-            if stmt.text:
-                idx = add_string(stmt.text)
-                offset = idx * 64
-                wat += f'    (call $print (i32.const {offset}) (i32.const {len(stmt.text)}))\n'
+        if stmt[0] == 'SKRIV':
+            idx = add_string(stmt[1])
+            off = idx * 64
+            wat += f'    (call $fd_write (i32.const 1) (i32.const {off}) (i32.const {len(stmt[1])}) (i32.const 0))\n'
+        elif stmt[0] == 'SKRIV_VAR':
+            var = stmt[1]
+            idx = add_string(f'{var}\\n')
+            off = idx * 64
+            wat += f'    (call $fd_write (i32.const 1) (i32.const {off}) (i32.const {len(var)+1}) (i32.const 0))\n'
+        elif stmt[0] == 'EXIT':
+            code = stmt[1] if stmt[1].isdigit() else '0'
+            wat += f'    (call $proc_exit (i32.const {code}))\n'
     
     wat += """  )
-
-  (func (export "read") (param $i i32) (result i32)
-    (i32.load8_u (local.get $i))
-  )
-
-  (func (export "write") (param $i i32) (param $v i32)
-    (i32.store8 (local.get $i) (local.get $v))
-  )
 """
     
+    # Data section
     data = '(data (i32.const 0) "'
     for s in strings:
         escaped = s.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\0a')
         data += escaped + '\\00'
     data += '")\n'
-    
     wat += '  ' + data + ')\n'
     
     return wat
 
 def create_html(wat):
     escaped = wat.replace('\\', '\\\\').replace('`', '\\`')
-    
     return f'''<!DOCTYPE html>
-<html lang="sv">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HIUH Runner</title>
-    <style>
-        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-        body {{ font-family: 'Courier New', monospace; background: #1a1a2e; color: #eee; padding: 15px; min-height: 100vh; }}
-        h1 {{ color: #e94560; margin-bottom: 15px; font-size: 1.5em; }}
-        .controls {{ margin-bottom: 15px; }}
-        .btn {{ background: #e94560; color: white; border: none; padding: 10px 20px; margin-right: 10px; cursor: pointer; border-radius: 5px; font-size: 16px; }}
-        .btn:hover {{ background: #ff6b6b; }}
-        #output {{ background: #16213e; color: #0f0; padding: 15px; min-height: 120px; white-space: pre-wrap; border-radius: 8px; border: 2px solid #e94560; font-size: 14px; }}
-        #code {{ display: none; background: #16213e; color: #4ecca3; padding: 15px; font-size: 12px; overflow-x: auto; white-space: pre-wrap; }}
-        .info {{ color: #888; margin-top: 15px; font-size: 14px; }}
-    </style>
-</head>
-<body>
-    <h1>HIUH Runner</h1>
-    <div class="controls">
-        <button class="btn" onclick="run()">Kör</button>
-        <button class="btn" onclick="toggle()">Kod</button>
-        <button class="btn" onclick="clear()">Rensa</button>
-    </div>
-    <pre id="output">Tryck "Kör" för att köra...\n</pre>
-    <pre id="code">{escaped}</pre>
-    <p class="info">Skicka HIUH-kod till @Klåd för kompilering!</p>
+<html><head><meta charset="UTF-8"><title>HIUH Runner</title></head>
+<body><h1>HIUH</h1>
+<pre id="code>{escaped}</pre>
+<button onclick="run()">Kör</button>
+<pre id="out">Tryck...</pre>
+<script src="https://cdn.jsdelivr.net/npm/wabt@1.0.32/index.js"></script>
+<script>
+let wabt=null, mem=null;
+async function init(){{if(!wabt)wabt=await WabtModule();return wabt;}}
+async function run(){{
+const out=document.getElementById('out');
+out.textContent='Kör...';
+try{{
+const mod=await init().then(w=>w.parseWat('h',document.getElementById('code').textContent));
+const bin=mod.toBinary({{}});
+const {{instance}}=await WebAssembly.instantiate(bin.buffer,{{
+wasi_snapshot_preview_preview1:{{
+fd_write:(fd,p,len)=>{{if(fd===1)out.textContent+=new TextDecoder().decode(new Uint8Array(mem.buffer).slice(p,p+len));return 0;}},
+proc_exit:(c)=>{{out.textContent+='\\n[Exit '+c+']';throw Error('x');}}
+}}}});
+mem=instance.exports.memory;
+if(instance.exports._start)instance.exports._start();
+out.textContent+='\\nKlart!';
+}}catch(e){{if(e.message!=='x')out.textContent+='\\nFel: '+e.message;}}
+}}
+</script></body></html>'''
 
-    <script src="https://cdn.jsdelivr.net/npm/wabt@1.0.32/index.js"></script>
-    <script>
-        let wabt = null, mem = null;
-        
-        async function init() {{ if (!wabt) wabt = await WabtModule(); return wabt; }}
-        
-        async function run() {{
-            const out = document.getElementById('output');
-            out.textContent = 'Kör...\n';
-            try {{
-                const mod = await init().then(w => w.parseWat('h.wat', document.getElementById('code').textContent));
-                const bin = mod.toBinary({{}});
-                const {{ instance }} = await WebAssembly.instantiate(bin.buffer, {{
-                    wasi_snapshot_preview1: {{
-                        fd_write: (fd, p, l) => {{
-                            if (fd === 1) {{
-                                const d = new Uint8Array(mem.buffer);
-                                let n = 0;
-                                while (p + n < d.length && d[p + n]) n++;
-                                out.textContent += new TextDecoder().decode(d.slice(p, p + n));
-                            }}
-                            return 0;
-                        }}
-                    }}
-                }});
-                mem = instance.exports.memory;
-                if (instance.exports._start) instance.exports._start();
-                out.textContent += '\\nKlart!';
-            }} catch (e) {{ out.textContent += '\\nFel: ' + e.message; }}
-        }}
-        
-        function toggle() {{
-            const c = document.getElementById('code');
-            c.style.display = c.style.display === 'none' ? 'block' : 'none';
-        }}
-        
-        function clear() {{ document.getElementById('output').textContent = ''; }}
-    </script>
-</body>
-</html>'''
-
-def main():
-    src = sys.stdin.read() if len(sys.argv) < 2 else open(sys.argv[1]).read()
-    
+def compile(src):
     tokens = tokenize(src)
     stmts = parse(tokens)
-    wat = compile_to_wasm(stmts)
-    html = create_html(wat)
-    
+    wat = generate_wat(stmts)
+    return create_html(wat)
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: python3 hiuh.py <input.hiuh> [output.html]")
+        return
+    src = open(sys.argv[1]).read()
+    html = compile(src)
     out = sys.argv[2] if len(sys.argv) > 2 else 'hiuh.html'
     open(out, 'w').write(html)
     print(f"Kompilerade till {out}")
