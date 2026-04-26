@@ -237,7 +237,7 @@ def parse(tokens):
             stmts.append(('ANTAL', val))
             i += 1
         elif typ == 'GREJ':
-            # Function definition - parse until GREJ SLUT
+            # Function definition - parse until HEJDA
             func_body, i = parse_block(tokens, i + 1)
             stmts.append(('GREJ', val, func_body))
         elif typ == 'CALL':

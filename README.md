@@ -98,7 +98,7 @@ Hejdå
 ```
 Grej <namn>(<parametrar>)
     <satser>
-Grej SLUT
+Hejdå
 ```
 
 ### Jämförelseoperatorer
