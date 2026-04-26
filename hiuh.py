@@ -469,15 +469,59 @@ class Compiler:
         
         elif op == 'LIST_APPEND':
             item, target = stmt[1], stmt[2]
-            self.code.append(f'    ;; Lägg till {item} till {target}')
+            # Get item value
+            is_var, val = self.resolve_value(item)
+            self.alloc_var('_tmp')
+            if is_var:
+                if self.get_var_idx(val) is not None:
+                    self.code.append(f'    (global.set $_tmp (global.get ${val}))')
+                else:
+                    self.code.append(f'    ;; FEL: okänd {val}')
+            else:
+                self.code.append(f'    (global.set $_tmp (i32.const {val}))')
+            # Store at list pointer
+            self.code.append(f'    (global.set $_tmp (i32.const 999))  ;; TODO: append to list')
         
         elif op == 'ANTAL':
             target = stmt[1]
-            self.code.append(f'    ;; Antal element i {target}')
+            # Store list length (hardcoded for now, TODO)
+            self.alloc_var('_result')
+            self.code.append(f'    (global.set $_result (i32.const 0))  ;; Antal för {target}')
         
         elif op == 'ELEMENT_UR':
             idx_expr, target = stmt[1], stmt[2]
-            self.code.append(f'    ;; element {idx_expr} ur {target}')
+            # Get index
+            is_var, val = self.resolve_value(idx_expr)
+            self.alloc_var('_idx')
+            if is_var:
+                if self.get_var_idx(val) is not None:
+                    self.code.append(f'    (global.set $_idx (global.get ${val}))')
+                else:
+                    self.code.append(f'    ;; FEL: okänd {val}')
+            else:
+                self.code.append(f'    (global.set $_idx (i32.const {val}))')
+            # Load element at list[idx] = *(list_ptr + idx*4)
+            self.code.append(f'    (global.set $_tmp (i32.load (i32.mul (global.get $_idx) (i32.const 4))))')
+        
+        elif op == 'TECKEN_UR':
+            idx_expr, target = stmt[1], stmt[2]
+            # Get index
+            is_var, val = self.resolve_value(idx_expr)
+            self.alloc_var('_idx')
+            if is_var:
+                if self.get_var_idx(val) is not None:
+                    self.code.append(f'    (global.set $_idx (global.get ${val}))')
+                else:
+                    self.code.append(f'    ;; FEL: okänd {val}')
+            else:
+                self.code.append(f'    (global.set $_idx (i32.const {val}))')
+            # Load byte at string[idx]
+            self.code.append(f'    (global.set $_tmp (i32.load8_u (global.get $_idx)))')
+        
+        elif op == 'SAMMANFOGAT':
+            left, right = stmt[1], stmt[2]
+            # For now, just mark it
+            self.code.append(f'    ;; {left} sammanfogat med {right}')
         
         elif op == 'OM':
             cond = stmt[1]
@@ -553,6 +597,8 @@ class Compiler:
         # Generate globals
         globals_section = "  (global $tmp (mut i32) (i32.const 0))\n"
         globals_section += "  (global $_cmp_result (mut i32) (i32.const 0))\n"
+        globals_section += "  (global $_idx (mut i32) (i32.const 0))\n"
+        globals_section += "  (global $_result (mut i32) (i32.const 0))\n"
         for name in sorted(self.variables.keys()):
             if not name.startswith('_'):
                 globals_section += f"  (global ${name} (mut i32) (i32.const 0))\n"
