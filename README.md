@@ -11,7 +11,7 @@
 
 ## Designprinciper
 
-### Inga citattecken, inga hakparenteser, inget plus!
+### Inga citattecken, inga hakparenteser, inget plus, inget minus!
 **Citattecken (`"`, `'`) är JÄVULENS PÅFUND!** Förbjudna.
 **Hakparenteser (`[]`) är JÄVULENS PÅFUND!** Förbjudna.
 **Plus (`+`) är JÄVULENS PÅFUND!** Förbjudet för strängar.
@@ -116,7 +116,7 @@ Grej SLUT
 
 | Operator | Betydelse |
 |----------|-----------|
-| `plus` | addition (`+`) |
+| `pluss` | addition (`+`) |
 | `minus` | subtraktion (`-`) |
 | `gånger` | multiplikation (`*`) |
 | `delat` | division (`/`) |
@@ -189,7 +189,7 @@ Skriv Hej världen
 ```
 Sätt x till 10
 Sätt y till 20
-Sätt z till x plus y
+Sätt z till x pluss y
 Skriv värdet av z
 ```
 
@@ -209,7 +209,7 @@ Hejdå
 ```
 Sätt summa till 0
 För i från 1 till 100
-    Sätt summa till summa plus i
+    Sätt summa till summa pluss i
 Hejdå
 Skriv summa
 ```
@@ -266,7 +266,7 @@ Ett centralt mål för `hiuhpp` är **statisk typkontroll**. Följande kontrolle
 
 | Operation | Tillåtna typer | Resultat |
 |-----------|---------------|----------|
-| `plus`, `minus`, `gånger`, `delat` | Heltal, Decimal | samma typ |
+| `pluss`, `minus`, `gånger`, `delat` | Heltal, Decimal | samma typ |
 | `är`, `är inte`, `är större`, `är mindre` | måste matcha | JaNej |
 | `Skriv` | alla typer | Text (konverterar automatiskt) |
 | `Sätt x till` | alla typer | samma typ som värdet |
