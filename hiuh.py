@@ -181,14 +181,40 @@ def tokenize(src):
                 tokens.append(('TECKEN_UR', f'{idx}:{target}', lineno))
             except: pass
         
-        # SAMMANFOGAT MED - special function
-        elif 'sammanfogat' in words and 'med' in words:
-            # "text sammanfogat med text" → Anropa sammanfogat med text text
-            si = words.index('sammanfogat')
-            mi = words.index('med')
-            left = ' '.join(words[:si])
-            right = ' '.join(words[mi+1:])
-            tokens.append(('CALL', f'sammanfogat med:{left},{right}', lineno))
+        # INLINE FUNKTION: a sammanfogat med b → CALL sammanfogat med(a, b)
+        elif len(words) >= 3:
+            # Check for infix patterns
+            if 'sammanfogat' in words and 'med' in words:
+                si = words.index('sammanfogat')
+                mi = words.index('med')
+                left = ' '.join(words[:si])
+                right = ' '.join(words[mi+1:])
+                tokens.append(('CALL', f'sammanfogat med:{left},{right}', lineno))
+            elif 'är' in words and 'större' not in words and 'mindre' not in words:
+                # a är b → CMP_EQ(a, b)
+                ei = words.index('är')
+                left = ' '.join(words[:ei])
+                right = ' '.join(words[ei+1:])
+                tokens.append(('CMP_EQ', f'{left}:{right}', lineno))
+            elif 'är' in words and 'större' in words:
+                # a är större än b
+                ei = words.index('är')
+                ni = words.index('än')
+                left = ' '.join(words[:ei])
+                right = ' '.join(words[ni+1:])
+                tokens.append(('CMP_GT', f'{left}:{right}', lineno))
+            elif 'är' in words and 'mindre' in words:
+                # a är mindre än b
+                ei = words.index('är')
+                ni = words.index('än')
+                left = ' '.join(words[:ei])
+                right = ' '.join(words[ni+1:])
+                tokens.append(('CMP_LT', f'{left}:{right}', lineno))
+            elif 'är' in words and 'större' in words and 'eller' in words:
+                # a är större eller b
+                tokens.append(('EXPR', stripped, lineno))
+            else:
+                tokens.append(('EXPR', stripped, lineno))
         
         # ANTAL ELEMENT I
         elif first == 'Antal' and len(words) >= 4 and words[2] == 'element' and words[3] == 'i':
