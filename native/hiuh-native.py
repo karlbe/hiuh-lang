@@ -55,13 +55,24 @@ def tokenize(src):
         
         elif first == 'tecken':
             # "tecken <index> ur <source>" - get char at index from source
-            # Example: "tecken i ur källa" → char at index[i] from source[källa]
             try:
                 ur_idx = words.index('ur')
                 if ur_idx > 1:
-                    idx_var = words[ur_idx - 1]  # word before 'ur'
+                    idx_var = words[ur_idx - 1]
                     source = ' '.join(words[ur_idx+1:]) if ur_idx+1 < len(words) else ''
                     tokens.append(('CHAR_AT', idx_var, source))
+            except:
+                pass
+        
+        elif first == 'hämta':
+            # "hämta element <index> från <list>" - get element at index from list
+            try:
+                element_idx = words.index('element')
+                från_idx = words.index('från')
+                if element_idx > 0 and från_idx > element_idx:
+                    idx_var = words[element_idx + 1]
+                    list_name = ' '.join(words[från_idx+1:]) if från_idx+1 < len(words) else ''
+                    tokens.append(('LIST_GET', idx_var, list_name))
             except:
                 pass
         
@@ -126,6 +137,9 @@ def parse(tokens):
             stmts.append(tok)
             i += 1
         elif tok[0] == 'APPEND':
+            stmts.append(tok)
+            i += 1
+        elif tok[0] == 'LIST_GET':
             stmts.append(tok)
             i += 1
         elif tok[0] == 'IF':
@@ -264,6 +278,11 @@ def compile_to_asm(stmts):
                 code.append(f"    mov {var_reg[item]}, %r15  # append {item}")
                 code.append(f"    mov %r15, (%r14)")
                 code.append(f"    inc %r14")
+        
+        elif op == 'LIST_GET':
+            idx, list_name = stmt[1], stmt[2]
+            code.append(f"    # hämta element {idx} från {list_name} → r15")
+            code.append(f"    mov $0, %r15  # TODO: implement LIST_GET")
         
         elif op == 'CMP':
             var1, var2 = stmt[1], stmt[2]
