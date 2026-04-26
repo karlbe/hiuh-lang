@@ -1,11 +1,12 @@
-# Simple tokenizer - reads input and compares char codes
+# Minimal tokenizer - bygger ord från input
 Läs
-För i från 0 till 10
+För i från 0 till 64
     tecken i ur källa
-    Sätt tecken_kod till tecken
-    Sätt cc till tecken_kod
-    Om cc är mindre än 32
-        Skriv Sp
+    Sätt tc till tecken
+    Om tc är mindre än 32
+        Skriv Space
+    Annars
+        Skriv Bokstav
     Hejdå
 Hejdå
-Skriv Klar
+Skriv Klart

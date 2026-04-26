@@ -10,10 +10,9 @@
 
 ## TODO - Fixa buggar
 
-### Hög prioritet
-- [ ] IF-ELSE i FOR fungerar inte - FOR konsumerar ELSEE token
-- [ ] cmp $0, %al efter CMP_LT genererar ingen CMP_LT-instruktion
-- [ ] 'tecken' variabeln inte tillgänglig som väntat
+### Hög prioritet (FIXAT!)
+- [x] IF-ELSE i FOR fungerar nu! (commit 5672cfe)
+- [x] CMP_LT genererar nu korrekt assembly (5672cfe)
 
 ### Medium prioritet  
 - [ ] Tokenizer: bygg ord genom att jämföra med mellanslag (32)
@@ -22,24 +21,13 @@
 ### Lower prioritet
 - [ ] Självkompilering: HIUH kompilerar HIUH
 
-## Känd bugg - IF i FOR
-```
-För i från 0 till 10
-    Om tecken_kod är mindre än 32
-        Skriv Sp
-    Hejdå
-Hejdå
-```
-FOR-loopen konsumerar tokens tills END, inklusive IF/ELSE. IF-handlern hinner inte processa ELSE.
-
 ## Test-kommandon
 ```bash
 # Testa tokenizer
-echo "Hej världen" | python3 native/hiuh-native.py --stdin /tmp/test && /tmp/test
-
-# Kompilera tokenizer.hiuh
-python3 native/hiuh-native.py hiuh-tokenizer.hiuh /tmp/test && echo "ABC" | /tmp/test
+python3 native/hiuh-native.py hiuh-tokenizer.hiuh /tmp/test && printf "Hej" | /tmp/test
 ```
 
-## Commit
-- senaste: 97fb922 "WIP: tokenizer with char comparison"
+## Senaste commits
+- 5672cfe: Fix: FOR parser now handles nested IF-ELSE properly
+- 6b23a8c: Add TODO.md for self-compilation goal
+- 97fb922: WIP: tokenizer with char comparison
