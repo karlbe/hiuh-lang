@@ -1,6 +1,6 @@
 # HIUH - Svensk programmering på mobilvänligt språk
 
-> **Obs:** Detta är `hiuhpp`-grenen – en hårt typad version med fokus på felupptäckt i kompilatorn!
+> **Mobilvänlig programmering utan specialtecken!**
 
 ## Filosofin bakom HIUH
 
