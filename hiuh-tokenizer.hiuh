@@ -2,82 +2,93 @@ Sätt antal till 0
 Sätt j till 0
 Sätt i_ord till 0
 Sätt klar till 0
-Läs
-För i från 0 till 255
-    Sätt tecken till tecken i ur källa
+För _ från 0 till 9999
+    Läs
+    Sätt tecken till tecken 0 ur källa
     Om tecken är 0
         Skriv värdet av antal
         JagMåsteGåNu 0
     Hejdå
-    Om tecken är mindre än 33
-        Sätt klar till i_ord
-        Sätt i_ord till 0
-    Hejdå
-    Om tecken är större än 32
-        Lagra tecken vid j i ord_buf
-        Sätt j till j pluss 1
-        Sätt i_ord till 1
-        Sätt klar till 0
-    Hejdå
-    Om klar är 1
-        Lagra i_ord vid j i ord_buf
-        Jämför ord_buf med Sätt
-        Om träff är 1
-            Skriv SET
-            Sätt klar till 2
+    För i från 0 till 255
+        Sätt tecken till tecken i ur källa
+        Om tecken är 0
+            Bryt
         Hejdå
-        Jämför ord_buf med För
-        Om träff är 1
-            Skriv FOR
-            Sätt klar till 2
+        Om tecken är mindre än 33
+            Sätt klar till i_ord
+            Sätt i_ord till 0
         Hejdå
-        Jämför ord_buf med Om
-        Om träff är 1
-            Skriv IF
-            Sätt klar till 2
-        Hejdå
-        Jämför ord_buf med Hejdå
-        Om träff är 1
-            Skriv END
-            Sätt klar till 2
-        Hejdå
-        Jämför ord_buf med Annars
-        Om träff är 1
-            Skriv ELSE
-            Sätt klar till 2
-        Hejdå
-        Jämför ord_buf med Läs
-        Om träff är 1
-            Skriv READ
-            Sätt klar till 2
-        Hejdå
-        Jämför ord_buf med Skriv
-        Om träff är 1
-            Skriv SKRIV
-            Sätt klar till 2
-        Hejdå
-        Jämför ord_buf med Lagra
-        Om träff är 1
-            Skriv LAGRA
-            Sätt klar till 2
-        Hejdå
-        Jämför ord_buf med Jämför
-        Om träff är 1
-            Skriv JAMFOR
-            Sätt klar till 2
-        Hejdå
-        Jämför ord_buf med JagMåsteGåNu
-        Om träff är 1
-            Skriv EXIT
-            Sätt klar till 2
+        Om tecken är större än 32
+            Lagra tecken vid j i ord_buf
+            Sätt j till j pluss 1
+            Sätt i_ord till 1
+            Sätt klar till 0
         Hejdå
         Om klar är 1
-            Skriv text i ord_buf
-            Sätt klar till 2
+            Lagra i_ord vid j i ord_buf
+            Jämför ord_buf med Sätt
+            Om träff är 1
+                Skriv SET
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med För
+            Om träff är 1
+                Skriv FOR
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med Om
+            Om träff är 1
+                Skriv IF
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med Hejdå
+            Om träff är 1
+                Skriv END
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med Annars
+            Om träff är 1
+                Skriv ELSE
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med Läs
+            Om träff är 1
+                Skriv READ
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med Skriv
+            Om träff är 1
+                Skriv SKRIV
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med Lagra
+            Om träff är 1
+                Skriv LAGRA
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med Jämför
+            Om träff är 1
+                Skriv JAMFOR
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med JagMåsteGåNu
+            Om träff är 1
+                Skriv EXIT
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med Bryt
+            Om träff är 1
+                Skriv BREAK
+                Sätt klar till 2
+            Hejdå
+            Om klar är 1
+                Skriv text i ord_buf
+                Sätt klar till 2
+            Hejdå
+            Sätt antal till antal pluss 1
+            Sätt j till 0
+            Sätt klar till 0
         Hejdå
-        Sätt antal till antal pluss 1
-        Sätt j till 0
-        Sätt klar till 0
     Hejdå
 Hejdå
 Skriv värdet av antal

@@ -108,6 +108,9 @@ def tokenize(src):
             val = words[1] if len(words) > 1 else '0'
             tokens.append(('RETURN', val))
         
+        elif first == 'Bryt':
+            tokens.append(('BREAK',))
+
         elif first == 'Läs':
             tokens.append(('READ',))
         
@@ -293,6 +296,9 @@ def parse(tokens):
         elif tok[0] == 'READ':
             stmts.append(tok)
             i += 1
+        elif tok[0] == 'BREAK':
+            stmts.append(tok)
+            i += 1
         elif tok[0] == 'CHAR_AT':
             stmts.append(tok)
             i += 1
@@ -476,6 +482,7 @@ def compile_to_asm(stmts, target='linux'):
     # Track reserved registers
     reserved = {'%r14': 'stack pointer', '%r15': 'temp/char result'}
     labels = [0]
+    loop_labels = []  # stack of loop_end labels for Bryt (break)
     named_buffers = set()
     skriv_buf_used = [False]
     lit_strings = []
@@ -629,27 +636,46 @@ def compile_to_asm(stmts, target='linux'):
             start = stmt[2]
             end = stmt[3]
             body = stmt[4]
-            
-            reg = alloc_var(var)
-            loop_start = new_label()
-            loop_end = new_label()
-            
-            # Resolve start and end values
-            start_r = resolve(start)
-            end_r = resolve(end)
-            
-            code.append(f"    mov {start_r}, {reg}  # for {var}")
-            code.append(f"{loop_start}:")
-            code.append(f"    mov {end_r}, %rax")
-            code.append(f"    cmp %rax, {reg}")
-            code.append(f"    jge {loop_end}")
-            
-            for s in body:
-                compile_stmt(s)
-            
-            code.append(f"    inc {reg}")
-            code.append(f"    jmp {loop_start}")
-            code.append(f"{loop_end}:")
+
+            # '_' is an anonymous counter — use %rbx (callee-saved, stable
+            # across calls, not in the named variable pool)
+            if var == '_':
+                loop_start = new_label()
+                loop_end = new_label()
+                start_r = resolve(start)
+                end_r = resolve(end)
+                code.append(f"    push %rbx  # save caller's rbx")
+                code.append(f"    mov {start_r}, %rbx  # for _")
+                code.append(f"{loop_start}:")
+                code.append(f"    mov {end_r}, %rax")
+                code.append(f"    cmp %rax, %rbx")
+                code.append(f"    jge {loop_end}")
+                loop_labels.append(loop_end)
+                for s in body:
+                    compile_stmt(s)
+                loop_labels.pop()
+                code.append(f"    inc %rbx")
+                code.append(f"    jmp {loop_start}")
+                code.append(f"{loop_end}:")
+                code.append(f"    pop %rbx  # restore caller's rbx")
+            else:
+                reg = alloc_var(var)
+                loop_start = new_label()
+                loop_end = new_label()
+                start_r = resolve(start)
+                end_r = resolve(end)
+                code.append(f"    mov {start_r}, {reg}  # for {var}")
+                code.append(f"{loop_start}:")
+                code.append(f"    mov {end_r}, %rax")
+                code.append(f"    cmp %rax, {reg}")
+                code.append(f"    jge {loop_end}")
+                loop_labels.append(loop_end)
+                for s in body:
+                    compile_stmt(s)
+                loop_labels.pop()
+                code.append(f"    inc {reg}")
+                code.append(f"    jmp {loop_start}")
+                code.append(f"{loop_end}:")
                 
         elif op == 'IF':
             # stmt = ('IF', body, else_body, '__HAS_ELSE__') or ('IF', body)
@@ -677,6 +703,10 @@ def compile_to_asm(stmts, target='linux'):
             else:
                 code.append(f"{if_end}:")
         
+        elif op == 'BREAK':
+            if loop_labels:
+                code.append(f"    jmp {loop_labels[-1]}  # Bryt")
+
         elif op == 'EXIT':
             if target == 'windows':
                 code.append(f"    mov ${stmt[1]}, %ecx")
@@ -783,6 +813,8 @@ def compile_to_asm(stmts, target='linux'):
         
         elif op == 'READ':
             if target == 'windows':
+                code.append(f"    lea input_buf(%rip), %rax")
+                code.append(f"    movb $0, (%rax)  # pre-zero: 0 on EOF after fgets")
                 code.append(f"    mov $0, %ecx")
                 code.append(f"    call __acrt_iob_func  # get stdin FILE*")
                 code.append(f"    mov %rax, %r8")
@@ -790,6 +822,8 @@ def compile_to_asm(stmts, target='linux'):
                 code.append(f"    mov $256, %edx")
                 code.append(f"    call fgets")
             else:
+                code.append(f"    lea input_buf(%rip), %rax")
+                code.append(f"    movb $0, (%rax)  # pre-zero: 0 on EOF after read")
                 code.append(f"    mov $0, %eax  # read")
                 code.append(f"    mov $0, %edi  # stdin")
                 code.append(f"    lea input_buf(%rip), %rsi")
