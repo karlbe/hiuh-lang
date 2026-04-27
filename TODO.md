@@ -3,55 +3,58 @@
 ## Mål
 - [ ] HIUH kompilator skriven i HIUH som kan kompilera sig själv
 
-## Överblick Architecture
+## Arkitektur
 1. **Tokenizer** - dela input i ord (ord-gränser vid mellanslag)
-2. **Parser** - bygg tokens till statements
+2. **Parser** - bygg tokens till statements  
 3. **Kodgenerator** - generera x86_64 assembly
 
-## TODO - Fixa buggar
+## Status
 
-### Hög prioritet (FIXAT!)
-- [x] IF-ELSE i FOR fungerar nu! (commit 5672cfe)
-- [x] CMP_LT genererar nu korrekt assembly (5672cfe)
-- [x] Register-konflikt: r14/r15 reserverade för stack/tecken (4da9973)
-- [x] IF-ELSE i funktioner fungerar nu! (ab98ccd)
-- [x] Fibonacci loop ger rätt svar! (56a82a9 - %4 → %6)
-- [x] **SKRIV_VAR fungerar nu** - fixade byte-register hantering (2a637d5)
-- [x] **CHAR_AT i variabel** - ny SET_CHAR_AT hantering (2a637d5)
+### Python-kompilatorn (native/hiuh-native.py) - KLAR
+- [x] Tokenizer - fungerar i Python
+- [x] Parser - fungerar
+- [x] Kodgenerator - genererar x86_64 assembly
+- [x] Funktioner (lambda-style)
+- [x] IF-ELSE i loopar
+- [x] Nästlade loopar
 
-### Medium prioritet  
-- [x] Tokenizer: bygg ord genom att jämföra med mellanslag (32)
-- [x] Lagra tokens i en lista - tokenizer returnerar nu (tokens, ord_lista)
-- [x] Funktionstyper: `Sätt <namn> till grej med x, y` för att skapa funktioner
-- [x] Stöd för `x är y` i tokenizer → SET (58a596c)
-- [x] Stöd för `x är y pluss z` i tokenizer (adb13ef)
+### HIUH tokenizer (hiuh-tokenizer.hiuh) - INTE KLAR
+- [ ] **VIKTIGT:** hiuh-tokenizer.hiuh är bara en TECKENRÄKNARE, inte en riktig tokenizer!
+- [ ] För att bli självkompilerande behövs:
+  1. **Strings** - lagra källkod
+  2. **Listor** - spara tokens
+  3. **Riktig tokenisering** - dela kod i tokens som Python-tokenizern
 
-### Tokenizer (KLART!)
-- [x] **Tokenizer fungerar** - hiuh-tokenizer.hiuh kompilerar och kör
-- [x] Räknar tecken i text (approx 128 tecken output pga loop-implementation)
-- [x] ord_lista genereras med 113 ord för självkompilering
-- [x] Fixat hiuh.cfg med korrekta Linux-sökvägar (/usr/bin/as, /usr/bin/ld)
+## Nästa steg (prioriterad ordning)
 
-## Lower prioritet
-- [ ] Självkompilering: HIUH kompilerar HIUH
+### 1. String-stöd i HIUH
+- [ ] Kunna lagra text i variabler
+- [ ] Jämföra tecken (==, !=)
+- [ ] Input via Läs
+
+### 2. List-stöd i HIUH
+- [ ] Kunna skapa lista
+- [ ] Kunna lägga till element
+- [ ] Kunna hämta element (index)
+
+### 3. Riktig tokenizer i HIUH
+- [ ] Läs HIUH-kod från input
+- [ ] Dela i ord (mellanslag = gräns)
+- [ ] Returnera lista av tokens
+
+## Kända buggar
+- Hejdå i IF-body bryter inte FOR-loopen
+- Output är ~128 för alla inputs (karaktärs-räknare, inte tokenizer)
 
 ## Test-kommandon
 ```bash
-# Testa tokenizer
+# Testa tokenizer (Python)
 python3 native/hiuh-native.py hiuh-tokenizer.hiuh /tmp/test && printf "Hej" | /tmp/test
 
 # Testa ord_lista för självkompilering
 python3 native/hiuh-native.py --ord-lista hiuh-tokenizer.hiuh
 ```
 
-## Kända buggar
-- Output är ~128 för alla inputs (loop räknar positioner, inte ord korrekt)
-- Hejdå i IF-body bryter inte FOR-loopen (behöver språk-stöd för nested breaks)
-
 ## Senaste commits
 - 4a77fd2: Tokenizer: HIUH tokenizer with character-by-character analysis
 - 2a637d5: Fix: SKRIV_VAR byte handling and register allocation
-- aa53827: Update TODO: mark fixes for SKRIV_VAR, SET_CHAR_AT
-- 56a82a9: Fix: modulo was %4 but reg_names has 6 entries - caused overflow
-- ab98ccd: Fix: IF-ELSE handling in parser and compiler
-- d761e3f: Fix: expanded register pool from 2 to 4 registers - fixes Fibonacci loop
