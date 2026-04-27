@@ -139,6 +139,15 @@ def tokenize(src):
             if len(words) >= 6 and words[2] == 'vid' and words[4] == 'i':
                 tokens.append(('STORE_CHAR', words[1], words[3], words[5]))
 
+        elif first == 'Jämför':
+            # Jämför X med Y → CMP_BUF_LIT X Y  (result stored in 'träff')
+            if 'med' in words:
+                med_i = words.index('med')
+                buf = words[1] if med_i > 1 else ''
+                lit = words[med_i + 1] if med_i + 1 < len(words) else ''
+                if buf and lit:
+                    tokens.append(('CMP_BUF_LIT', buf, lit))
+
         elif first == 'Om':
             # "Om x är mindre än y" → store comparison type with IF
             rest = words[1:]
@@ -228,6 +237,9 @@ def parse(tokens):
             stmts.append(tok)
             i += 1
         elif tok[0] == 'STORE_CHAR':
+            stmts.append(tok)
+            i += 1
+        elif tok[0] == 'CMP_BUF_LIT':
             stmts.append(tok)
             i += 1
         elif tok[0] == 'SKRIV_BUF':
@@ -489,6 +501,7 @@ def compile_to_asm(stmts, target='linux'):
     labels = [0]
     named_buffers = set()
     skriv_buf_used = [False]
+    lit_strings = []
 
     def alloc_var(v):
         nonlocal next_reg
@@ -530,6 +543,11 @@ def compile_to_asm(stmts, target='linux'):
             strings.append(s)
             idx = len(strings) - 1
             if target == 'windows':
+                # TODO: call puts clobbers caller-saved regs (%r8-%r11) which hold
+                # variables when called inside a FOR loop. Need same push/subq $32/
+                # call/addq/pop pattern as SKRIV_BUF. Without it, the FOR loop counter
+                # (%r11 or whichever reg holds 'i') is corrupted after each Skriv inside
+                # a loop body, causing the loop to exit or jump incorrectly.
                 code.append(f"    lea msg_{idx}(%rip), %rcx")
                 code.append(f"    call puts")
             else:
@@ -785,6 +803,58 @@ def compile_to_asm(stmts, target='linux'):
                 code.append(f"    mov $256, %edx  # max bytes")
                 code.append(f"    syscall")
         
+        elif op == 'CMP_BUF_LIT':
+            buf_name, literal = stmt[1], stmt[2]
+            lit_strings.append(literal)
+            lit_idx = len(lit_strings) - 1
+            träff_reg = alloc_var('träff')
+            if target == 'windows':
+                cs = {'%r8', '%r9', '%r10', '%r11'}
+                to_save = sorted(r for r in var_reg.values() if r in cs and r != träff_reg)
+                align_pad = 8 if len(to_save) % 2 == 1 else 0
+                if align_pad:
+                    code.append(f"    subq $8, %rsp  # alignment pad")
+                for reg in to_save:
+                    code.append(f"    push {reg}")
+                code.append(f"    subq $32, %rsp  # shadow space for strcmp")
+                code.append(f"    lea {buf_name}(%rip), %rcx")
+                code.append(f"    lea lit_{lit_idx}(%rip), %rdx")
+                code.append(f"    call strcmp")
+                code.append(f"    test %eax, %eax")
+                code.append(f"    sete %al")
+                code.append(f"    addq $32, %rsp")
+                for reg in reversed(to_save):
+                    code.append(f"    pop {reg}")
+                if align_pad:
+                    code.append(f"    addq $8, %rsp")
+                code.append(f"    movzx %al, %rax")
+                code.append(f"    mov %rax, {träff_reg}  # träff = strcmp result")
+            else:
+                # Inline strcmp: rsi=buf, rdi=lit → result in träff_reg
+                lbl_loop = new_label()
+                lbl_ne = new_label()
+                lbl_eq = new_label()
+                lbl_done = new_label()
+                code.append(f"    lea {buf_name}(%rip), %rsi")
+                code.append(f"    lea lit_{lit_idx}(%rip), %rdi")
+                code.append(f"{lbl_loop}:")
+                code.append(f"    movb (%rsi), %al")
+                code.append(f"    movb (%rdi), %cl")
+                code.append(f"    cmpb %cl, %al")
+                code.append(f"    jne {lbl_ne}")
+                code.append(f"    testb %al, %al")
+                code.append(f"    jz {lbl_eq}")
+                code.append(f"    inc %rsi")
+                code.append(f"    inc %rdi")
+                code.append(f"    jmp {lbl_loop}")
+                code.append(f"{lbl_eq}:")
+                code.append(f"    mov $1, %rax")
+                code.append(f"    jmp {lbl_done}")
+                code.append(f"{lbl_ne}:")
+                code.append(f"    xor %rax, %rax")
+                code.append(f"{lbl_done}:")
+                code.append(f"    mov %rax, {träff_reg}  # träff = strcmp result")
+
         elif op == 'STORE_CHAR':
             char_var, idx_var, buf_name = stmt[1], stmt[2], stmt[3]
             named_buffers.add(buf_name)
@@ -899,6 +969,9 @@ def compile_to_asm(stmts, target='linux'):
             data.append(f"msg_{i}: .asciz \"{escaped}\"")
         else:
             data.append(f"msg_{i}: .ascii \"{escaped}\\n\\0\"")
+    for i, s in enumerate(lit_strings):
+        escaped = s.replace('\\', '\\\\').replace('"', '\\"')
+        data.append(f'lit_{i}: .asciz "{escaped}"')
     data.append("num_buf: .byte 0")
     data.append("input_buf: .skip 256")
     for buf in sorted(named_buffers):
@@ -967,7 +1040,7 @@ def main():
         print(asm)
         return
 
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.s', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.s', delete=False, encoding='utf-8') as f:
         f.write(asm)
         asm_file = f.name
 
