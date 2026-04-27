@@ -17,6 +17,9 @@
 ### Medium prioritet  
 - [ ] Tokenizer: bygg ord genom att jämföra med mellanslag (32)
 - [ ] Lagra tokens i en lista
+- [ ] **Funktionstyper**: `Sätt <namn> till grej med x, y` för att skapa funktioner
+  - Syntax: `Sätt min till grej med x, y ... ge <retur>`
+  - Anrop: `Sätt a till min med 2, 3`
 
 ### Lower prioritet
 - [ ] Självkompilering: HIUH kompilerar HIUH

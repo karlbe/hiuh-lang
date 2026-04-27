@@ -1,12 +1,7 @@
-# Minimal tokenizer - bygger ord från input
+# Simple test - just print the count
 Läs
-För i från 0 till 64
-    tecken i ur källa
-    Sätt tc till tecken
-    Om tc är mindre än 32
-        Skriv Space
-    Annars
-        Skriv Bokstav
-    Hejdå
+Sätt antal till 0
+För i från 0 till 10
+    antal är antal pluss 1
 Hejdå
-Skriv Klart
+Skriv värdet av antal
