@@ -62,6 +62,22 @@ def tokenize(src):
                 params_str = rest[len('grej med '):]
                 params = [p.strip() for p in params_str.split(',')]
                 tokens.append(('FUNC_DEF', var, params))
+            elif rest.startswith('Jämför ') and ' med ' in rest:
+                # Sätt x till Jämför buf med lit
+                rw = rest.split()
+                med_i = rw.index('med')
+                buf = rw[1]
+                lit = rw[med_i + 1] if med_i + 1 < len(rw) else ''
+                if buf and lit:
+                    tokens.append(('CMP_BUF_LIT', var, buf, lit))
+            elif rest.startswith('JämförBuffer ') and ' med ' in rest:
+                # Sätt x till JämförBuffer buf1 med buf2
+                rw = rest.split()
+                med_i = rw.index('med')
+                buf1 = rw[1]
+                buf2 = rw[med_i + 1] if med_i + 1 < len(rw) else ''
+                if buf1 and buf2:
+                    tokens.append(('CMP_BUF_BUF', var, buf1, buf2))
             elif ' med ' in rest and not rest.startswith('grej '):
                 # Function call: Sätt a till min med 2, 3
                 parts = rest.split(' med ')
@@ -78,13 +94,19 @@ def tokenize(src):
                 else:
                     tokens.append(('SET', var, rest))
             elif ' är ' in rest and ' pluss ' not in rest and ' med ' not in rest:
-                # SET_CMP_RESULT: Sätt x till y är z → cmp(y,z) then set x to result
-                parts = rest.split(' är ')
+                parts = rest.split(' är ', 1)
                 if len(parts) == 2:
                     left = parts[0].strip()
                     right = parts[1].strip()
-                    tokens.append(('CMP', left, right))
-                    tokens.append(('SET_CMP_RESULT', var))
+                    if right.startswith('mindre än '):
+                        tokens.append(('CMP_LT', left, right[len('mindre än '):].strip()))
+                        tokens.append(('SET_CMP_RESULT', var))
+                    elif right.startswith('större än '):
+                        tokens.append(('CMP_GT', left, right[len('större än '):].strip()))
+                        tokens.append(('SET_CMP_RESULT', var))
+                    else:
+                        tokens.append(('CMP', left, right))
+                        tokens.append(('SET_CMP_RESULT', var))
                 else:
                     tokens.append(('SET', var, rest))
             else:
@@ -144,22 +166,22 @@ def tokenize(src):
                 tokens.append(('STORE_CHAR', words[1], words[3], words[5]))
 
         elif first == 'Jämför':
-            # Jämför X med Y → CMP_BUF_LIT X Y  (result stored in 'träff')
+            # Standalone Jämför X med Y — implicit träff target (legacy form)
             if 'med' in words:
                 med_i = words.index('med')
                 buf = words[1] if med_i > 1 else ''
                 lit = words[med_i + 1] if med_i + 1 < len(words) else ''
                 if buf and lit:
-                    tokens.append(('CMP_BUF_LIT', buf, lit))
+                    tokens.append(('CMP_BUF_LIT', 'träff', buf, lit))
 
         elif first == 'JämförBuffer':
-            # JämförBuffer X med Y → CMP_BUF_BUF X Y  (runtime buffer vs buffer)
+            # Standalone JämförBuffer X med Y — implicit träff target (legacy form)
             if 'med' in words:
                 med_i = words.index('med')
                 buf1 = words[1] if med_i > 1 else ''
                 buf2 = words[med_i + 1] if med_i + 1 < len(words) else ''
                 if buf1 and buf2:
-                    tokens.append(('CMP_BUF_BUF', buf1, buf2))
+                    tokens.append(('CMP_BUF_BUF', 'träff', buf1, buf2))
 
         elif first == 'Om':
             # "Om x är mindre än y" → store comparison type with IF
@@ -892,10 +914,10 @@ def compile_to_asm(stmts, target='linux'):
                 code.append(f"    syscall")
         
         elif op == 'CMP_BUF_LIT':
-            buf_name, literal = stmt[1], stmt[2]
+            target_var, buf_name, literal = stmt[1], stmt[2], stmt[3]
             lit_strings.append(literal)
             lit_idx = len(lit_strings) - 1
-            träff_reg = alloc_var('träff')
+            träff_reg = alloc_var(target_var)
             if target == 'windows':
                 to_save, align_pad = win_call_save(exclude=träff_reg)
                 code.append(f"    lea {buf_name}(%rip), %rcx")
@@ -933,10 +955,10 @@ def compile_to_asm(stmts, target='linux'):
                 code.append(f"    mov %rax, {träff_reg}  # träff = strcmp result")
 
         elif op == 'CMP_BUF_BUF':
-            buf1, buf2 = stmt[1], stmt[2]
+            target_var, buf1, buf2 = stmt[1], stmt[2], stmt[3]
             named_buffers.add(buf1)
             named_buffers.add(buf2)
-            träff_reg = alloc_var('träff')
+            träff_reg = alloc_var(target_var)
             if target == 'windows':
                 to_save, align_pad = win_call_save(exclude=träff_reg)
                 code.append(f"    lea {buf1}(%rip), %rcx")
