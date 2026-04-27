@@ -219,8 +219,20 @@ def parse(tokens):
                         if i < len(tokens) and tokens[i][0] == 'END':
                             i += 1
                 else:
-                    body.append(tok2)
-                    i += 1
+                    if tok2[0] == 'FOR':
+                        # Recursively parse nested FOR
+                        inner_body = []
+                        i += 1
+                        while i < len(tokens) and tokens[i][0] != 'END':
+                            inner_body.append(tokens[i])
+                            i += 1
+                        if i < len(tokens) and tokens[i][0] == 'END':
+                            i += 1
+                        # The inner FOR still needs parsing, add raw for now
+                        body.append(('FOR', tok2[1], tok2[2], tok2[3], inner_body))
+                    else:
+                        body.append(tok2)
+                        i += 1
             if i < len(tokens) and tokens[i][0] == 'END':
                 i += 1
             stmts.append(('FOR', tok[1], tok[2], tok[3], body))
@@ -317,8 +329,20 @@ def parse(tokens):
                     depth = 0
                     break
                 else:
-                    body.append(tok2)
-                    i += 1
+                    if tok2[0] == 'FOR':
+                        # Recursively parse nested FOR
+                        inner_body = []
+                        i += 1
+                        while i < len(tokens) and tokens[i][0] != 'END':
+                            inner_body.append(tokens[i])
+                            i += 1
+                        if i < len(tokens) and tokens[i][0] == 'END':
+                            i += 1
+                        # The inner FOR still needs parsing, add raw for now
+                        body.append(('FOR', tok2[1], tok2[2], tok2[3], inner_body))
+                    else:
+                        body.append(tok2)
+                        i += 1
             stmts.append(('FUNC', tok[1], tok[2], body))
         elif tok[0] == 'FUNC_CALL':
             stmts.append(tok)
