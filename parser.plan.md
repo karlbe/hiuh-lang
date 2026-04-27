@@ -12,7 +12,7 @@ Then: as + ld to produce the final executable.
 
 ## Compiler additions needed first
 
-### 1. KopieraBuf (buffer copy) — BLOCKING
+### 1. KopieraBuffer (buffer copy) — BLOCKING
 
 The parser reads each token into källa via Läs, then must save it
 before the next Läs. Without a copy instruction every save is ~8 lines:
@@ -25,7 +25,7 @@ before the next Läs. Without a copy instruction every save is ~8 lines:
         Hejdå
     Hejdå
 
-Proposed syntax:  KopieraBuf tok_buf från källa
+Proposed syntax:  KopieraBuffer tok_buf från källa
 Tokenizes to:     ('COPY_BUF', dest, src)
 Compiles to:      call strcpy (Windows) / inline byte loop (Linux)
 

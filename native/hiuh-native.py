@@ -135,7 +135,12 @@ def tokenize(src):
             tokens.append(('BREAK',))
 
         elif first == 'Läs':
-            tokens.append(('READ',))
+            if 'till' in words:
+                till_i = words.index('till')
+                var = words[till_i + 1] if till_i + 1 < len(words) else '_las_ok'
+                tokens.append(('READ_RES', var))
+            else:
+                tokens.append(('READ',))
         
         elif first == 'tecken':
             # "tecken <index> ur <source>" - get char at index from source
@@ -182,6 +187,31 @@ def tokenize(src):
                 buf2 = words[med_i + 1] if med_i + 1 < len(words) else ''
                 if buf1 and buf2:
                     tokens.append(('CMP_BUF_BUF', 'träff', buf1, buf2))
+
+        elif first == 'Sålänge':
+            rest = words[1:]
+            if rest and 'är' in rest:
+                var1 = rest[0]
+                är_i = rest.index('är')
+                if 'mindre' in rest and 'än' in rest:
+                    cmp_type = 'LT'
+                    var2 = rest[rest.index('än') + 1]
+                elif 'större' in rest and 'än' in rest:
+                    cmp_type = 'GT'
+                    var2 = rest[rest.index('än') + 1]
+                else:
+                    cmp_type = 'EQ'
+                    var2 = rest[är_i + 1] if är_i + 1 < len(rest) else '0'
+                tokens.append(('WHILE', cmp_type, var1, var2))
+
+        elif first == 'KopieraBuffer':
+            # KopieraBuffer src till dest
+            if 'till' in words:
+                till_i = words.index('till')
+                src = words[1] if till_i > 1 else ''
+                dest = words[till_i + 1] if till_i + 1 < len(words) else ''
+                if src and dest:
+                    tokens.append(('COPY_BUF', dest, src))
 
         elif first == 'Om':
             # "Om x är mindre än y" → store comparison type with IF
@@ -280,6 +310,10 @@ def parse(tokens):
                 i += 1
                 inner, i = parse_block(i)
                 blk.append(('FOR', tok[1], tok[2], tok[3], inner))
+            elif tok[0] == 'WHILE':
+                i += 1
+                inner, i = parse_block(i)
+                blk.append(('WHILE', tok[1], tok[2], tok[3], inner))
             else:
                 blk.append(tok)
                 i += 1
@@ -340,6 +374,16 @@ def parse(tokens):
         elif tok[0] == 'LIST_GET':
             stmts.append(tok)
             i += 1
+        elif tok[0] == 'COPY_BUF':
+            stmts.append(tok)
+            i += 1
+        elif tok[0] == 'READ_RES':
+            stmts.append(tok)
+            i += 1
+        elif tok[0] == 'WHILE':
+            i += 1
+            body, i = parse_block(i)
+            stmts.append(('WHILE', tok[1], tok[2], tok[3], body))
         elif tok[0] == 'FUNC_DEF':
             # Parse function body until END, handling nested IF-ELSE
             body = []
@@ -894,6 +938,56 @@ def compile_to_asm(stmts, target='linux'):
             code.append(f"    cmp {r2}, %rax")
             code.append(f"    setg %al")
         
+        elif op == 'READ_RES':
+            res_reg = alloc_var(stmt[1])
+            if target == 'windows':
+                code.append(f"    lea input_buf(%rip), %rax")
+                code.append(f"    movb $0, (%rax)  # pre-zero")
+                code.append(f"    mov $0, %ecx")
+                code.append(f"    call __acrt_iob_func  # get stdin FILE*")
+                code.append(f"    mov %rax, %r8")
+                code.append(f"    lea input_buf(%rip), %rcx")
+                code.append(f"    mov $256, %edx")
+                code.append(f"    call fgets")
+                code.append(f"    test %rax, %rax")
+                code.append(f"    setne %al")
+                code.append(f"    movzx %al, %rax")
+                code.append(f"    mov %rax, {res_reg}  # {stmt[1]} = 1 if ok, 0 if EOF")
+            else:
+                code.append(f"    lea input_buf(%rip), %rax")
+                code.append(f"    movb $0, (%rax)  # pre-zero")
+                code.append(f"    mov $0, %eax  # read")
+                code.append(f"    mov $0, %edi  # stdin")
+                code.append(f"    lea input_buf(%rip), %rsi")
+                code.append(f"    mov $256, %edx  # max bytes")
+                code.append(f"    syscall")
+                code.append(f"    test %rax, %rax")
+                code.append(f"    setg %al")
+                code.append(f"    movzx %al, %rax")
+                code.append(f"    mov %rax, {res_reg}  # {stmt[1]} = 1 if ok, 0 if EOF")
+
+        elif op == 'WHILE':
+            cmp_type, var1, var2, body = stmt[1], stmt[2], stmt[3], stmt[4]
+            loop_start = new_label()
+            loop_end = new_label()
+            r1 = resolve(var1)
+            r2 = resolve(var2)
+            code.append(f"{loop_start}:  # Sålänge")
+            code.append(f"    mov {r1}, %rax")
+            code.append(f"    cmp {r2}, %rax")
+            if cmp_type == 'EQ':
+                code.append(f"    jne {loop_end}")
+            elif cmp_type == 'LT':
+                code.append(f"    jge {loop_end}")
+            elif cmp_type == 'GT':
+                code.append(f"    jle {loop_end}")
+            loop_labels.append(loop_end)
+            for s in body:
+                compile_stmt(s)
+            loop_labels.pop()
+            code.append(f"    jmp {loop_start}")
+            code.append(f"{loop_end}:")
+
         elif op == 'READ':
             if target == 'windows':
                 code.append(f"    lea input_buf(%rip), %rax")
@@ -1014,6 +1108,33 @@ def compile_to_asm(stmts, target='linux'):
             code.append(f"    add %rcx, %rsi")
             code.append(f"    mov {char_byte}, (%rsi)")
 
+        elif op == 'COPY_BUF':
+            dest, src = stmt[1], stmt[2]
+            if dest != 'input_buf':
+                named_buffers.add(dest)
+            if src != 'input_buf':
+                named_buffers.add(src)
+            if target == 'windows':
+                to_save, align_pad = win_call_save()
+                code.append(f"    lea {dest}(%rip), %rcx")
+                code.append(f"    lea {src}(%rip), %rdx")
+                code.append(f"    call strcpy")
+                win_call_restore(to_save, align_pad)
+            else:
+                lbl_loop = new_label()
+                lbl_done = new_label()
+                code.append(f"    lea {dest}(%rip), %rdi")
+                code.append(f"    lea {src}(%rip), %rsi")
+                code.append(f"{lbl_loop}:")
+                code.append(f"    movb (%rsi), %al")
+                code.append(f"    movb %al, (%rdi)")
+                code.append(f"    testb %al, %al")
+                code.append(f"    jz {lbl_done}")
+                code.append(f"    inc %rsi")
+                code.append(f"    inc %rdi")
+                code.append(f"    jmp {lbl_loop}")
+                code.append(f"{lbl_done}:")
+
         elif op == 'SKRIV_BUF_NL':
             buf_name = stmt[1]
             named_buffers.add(buf_name)
@@ -1130,7 +1251,8 @@ def compile_to_asm(stmts, target='linux'):
     data.append("num_buf: .byte 0")
     data.append("input_buf: .skip 256")
     for buf in sorted(named_buffers):
-        data.append(f"{buf}: .skip 256")
+        if buf != 'input_buf':
+            data.append(f"{buf}: .skip 256")
     if target == 'linux' and skriv_buf_used[0]:
         data.append('_nl: .ascii "\\n"')
     data.append(".bss")
