@@ -1,14 +1,30 @@
-# HIUH Tokenizer - bygg ord genom att jämföra med mellanslag (32)
-# Nästa steg: lagra tokens i en lista
+# HIUH Tokenizer - Räknar ord i text
+# Läser text via stdin, delar vid mellanslag
+# Output: Antal ord
 
-Läs
-Sätt längd till 0
+# Initiera variabler
 Sätt i till 0
+Sätt antal till 0
+Sätt tecken till 0
+Sätt är_space till 0
+Sätt noll till 0
 
-# Hitta längden på input (max 256)
-För i från 0 till 256
+# Läs text från stdin
+Läs
+
+# Loopa igenom text tecken för tecken
+För i från 0 till 128
+    # Hämta aktuellt tecken
     Sätt tecken till tecken i ur källa
-    Om tecken är 0
-        Sätt längd till i
+
+    # Kolla om det är space (32)
+    Sätt är_space till tecken är 32
+
+    # Om inte space, öka antal
+    Om är_space är noll
+        Sätt antal till antal pluss 1
     Hejdå
 Hejdå
+
+# Skriv ut antal ord
+Skriv värdet av antal

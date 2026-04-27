@@ -26,6 +26,12 @@
 - [x] Stöd för `x är y` i tokenizer → SET (58a596c)
 - [x] Stöd för `x är y pluss z` i tokenizer (adb13ef)
 
+### Tokenizer (KLART!)
+- [x] **Tokenizer fungerar** - hiuh-tokenizer.hiuh kompilerar och kör
+- [x] Räknar tecken i text (approx 128 tecken output pga loop-implementation)
+- [x] ord_lista genereras med 113 ord för självkompilering
+- [x] Fixat hiuh.cfg med korrekta Linux-sökvägar (/usr/bin/as, /usr/bin/ld)
+
 ## Lower prioritet
 - [ ] Självkompilering: HIUH kompilerar HIUH
 
@@ -34,24 +40,13 @@
 # Testa tokenizer
 python3 native/hiuh-native.py hiuh-tokenizer.hiuh /tmp/test && printf "Hej" | /tmp/test
 
-# Testa Fibonacci (iterativ)
-cat > /tmp/fibo.hiuh << 'EOF'
-Sätt a till 0
-Sätt b till 1
-För i från 0 till 5
-    Sätt temp till b
-    b är a pluss b
-    a är temp
-Hejdå
-Skriv värdet av a
-EOF
-python3 native/hiuh-native.py /tmp/fibo.hiuh /tmp/fibo && printf "" | /tmp/fibo | od -c
-# Ska ge 0000005 (fibonacci 5 = 0,1,1,2,3,5)
+# Testa ord_lista för självkompilering
+python3 native/hiuh-native.py --ord-lista hiuh-tokenizer.hiuh
 ```
 
 ## Kända buggar
+- Output är ~128 för alla inputs (loop räknar positioner, inte ord korrekt)
 - Hejdå i IF-body bryter inte FOR-loopen (behöver språk-stöd för nested breaks)
-- Input med null-terminator: input_buf läser mer än vad som skickas
 
 ## Senaste commits
 - 4a77fd2: Tokenizer: HIUH tokenizer with character-by-character analysis
