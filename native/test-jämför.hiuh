@@ -1,0 +1,35 @@
+Sätt antal till 0
+Sätt j till 0
+Sätt i_ord till 0
+Sätt klar till 0
+Läs
+För i från 0 till 255
+    Sätt tecken till tecken i ur källa
+    Om tecken är 0
+        SkrivNyRad värdet av antal
+        JagMåsteGåNu 0
+    Hejdå
+    Om tecken är mindre än 33
+        Sätt klar till i_ord
+        Sätt i_ord till 0
+    Hejdå
+    Om tecken är större än 32
+        Lagra tecken vid j i ord_buf
+        Sätt j till j pluss 1
+        Sätt i_ord till 1
+        Sätt klar till 0
+    Hejdå
+    Om klar är 1
+        Lagra i_ord vid j i ord_buf
+        SkrivNyRad text i ord_buf
+        Jämför ord_buf med Sätt
+        Sätt antal till antal pluss 1
+        Sätt j till 0
+        Sätt klar till 0
+    Hejdå
+    Om träff är 1
+        SkrivNyRad KEYWORD_SET
+        Sätt träff till 0
+    Hejdå
+Hejdå
+SkrivNyRad värdet av antal

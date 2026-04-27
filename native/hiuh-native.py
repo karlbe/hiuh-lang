@@ -37,14 +37,15 @@ def tokenize(src):
         if first != '.':
             ord_lista.extend(words)
         
-        if first == 'Skriv':
+        if first in ('Skriv', 'SkrivNyRad'):
             rest = ' '.join(words[1:])
+            nl = first == 'SkrivNyRad'
             if rest.startswith('värdet av '):
-                tokens.append(('SKRIV_VAR', words[-1]))
+                tokens.append(('SKRIV_VAR_NL' if nl else 'SKRIV_VAR', words[-1]))
             elif rest.startswith('text i '):
-                tokens.append(('SKRIV_BUF', rest[len('text i '):]))
+                tokens.append(('SKRIV_BUF_NL' if nl else 'SKRIV_BUF', rest[len('text i '):]))
             else:
-                tokens.append(('SKRIV', rest))
+                tokens.append(('SKRIV_NL' if nl else 'SKRIV', rest))
         elif first == '.':
             # Comment line - skip
             continue
@@ -259,10 +260,10 @@ def parse(tokens):
     i = 0
     while i < len(tokens):
         tok = tokens[i]
-        if tok[0] == 'SKRIV':
+        if tok[0] in ('SKRIV', 'SKRIV_NL'):
             stmts.append(tok)
             i += 1
-        elif tok[0] == 'SKRIV_VAR':
+        elif tok[0] in ('SKRIV_VAR', 'SKRIV_VAR_NL'):
             stmts.append(tok)
             i += 1
         elif tok[0] == 'SET':
@@ -280,7 +281,7 @@ def parse(tokens):
         elif tok[0] == 'CMP_BUF_LIT':
             stmts.append(tok)
             i += 1
-        elif tok[0] == 'SKRIV_BUF':
+        elif tok[0] in ('SKRIV_BUF', 'SKRIV_BUF_NL'):
             stmts.append(tok)
             i += 1
         elif tok[0] == 'PLUS':
@@ -485,7 +486,10 @@ def compile_to_asm(stmts, target='linux'):
     loop_labels = []  # stack of loop_end labels for Bryt (break)
     named_buffers = set()
     skriv_buf_used = [False]
+    fmt_s_used = [False]       # "%s" format string for no-newline printf
+    fmt_int_nonl_used = [False]  # "%lld" format string (no newline)
     lit_strings = []
+    strings_nonl = []  # strings for SKRIV (no newline)
 
     def alloc_var(v):
         nonlocal next_reg
@@ -540,7 +544,7 @@ def compile_to_asm(stmts, target='linux'):
     def compile_stmt(stmt):
         op = stmt[0]
         
-        if op == 'SKRIV':
+        if op == 'SKRIV_NL':
             s = stmt[1]
             strings.append(s)
             idx = len(strings) - 1
@@ -555,8 +559,26 @@ def compile_to_asm(stmts, target='linux'):
                 code.append(f"    mov $1, %edi")
                 code.append(f"    mov $1, %eax")
                 code.append(f"    syscall")
+
+        elif op == 'SKRIV':
+            s = stmt[1]
+            strings_nonl.append(s)
+            idx = len(strings_nonl) - 1
+            fmt_s_used[0] = True
+            if target == 'windows':
+                to_save, align_pad = win_call_save()
+                code.append(f"    lea fmt_s(%rip), %rcx")
+                code.append(f"    lea msg_nonl_{idx}(%rip), %rdx")
+                code.append(f"    call printf")
+                win_call_restore(to_save, align_pad)
+            else:
+                code.append(f"    lea msg_nonl_{idx}(%rip), %rsi")
+                code.append(f"    mov ${len(s)}, %edx")
+                code.append(f"    mov $1, %edi")
+                code.append(f"    mov $1, %eax")
+                code.append(f"    syscall")
         
-        elif op == 'SKRIV_VAR':
+        elif op == 'SKRIV_VAR_NL':
             reg = resolve(stmt[1])
             if target == 'windows':
                 if reg == '%r15':
@@ -566,6 +588,36 @@ def compile_to_asm(stmts, target='linux'):
                 to_save, align_pad = win_call_save()
                 code.append(f"    mov %rax, %rdx")
                 code.append(f"    lea fmt_int(%rip), %rcx")
+                code.append(f"    call printf")
+                win_call_restore(to_save, align_pad)
+            else:
+                if reg.startswith('$'):
+                    code.append(f"    mov {reg}, %rax")
+                    code.append(f"    lea num_buf(%rip), %rsi")
+                    code.append(f"    mov %al, (%rsi)")
+                elif reg == '%r15':
+                    code.append(f"    lea num_buf(%rip), %rsi")
+                    code.append(f"    mov %r15b, (%rsi)")
+                else:
+                    code.append(f"    lea num_buf(%rip), %rsi")
+                    code.append(f"    mov {reg}, %al")
+                    code.append(f"    mov %al, (%rsi)")
+                code.append(f"    mov $1, %rdx")
+                code.append(f"    mov $1, %rdi")
+                code.append(f"    mov $1, %eax")
+                code.append(f"    syscall")
+
+        elif op == 'SKRIV_VAR':
+            reg = resolve(stmt[1])
+            fmt_int_nonl_used[0] = True
+            if target == 'windows':
+                if reg == '%r15':
+                    code.append(f"    movzx %r15b, %rax  # save print value")
+                else:
+                    code.append(f"    mov {reg}, %rax  # save print value")
+                to_save, align_pad = win_call_save()
+                code.append(f"    mov %rax, %rdx")
+                code.append(f"    lea fmt_int_nonl(%rip), %rcx")
                 code.append(f"    call printf")
                 win_call_restore(to_save, align_pad)
             else:
@@ -891,7 +943,7 @@ def compile_to_asm(stmts, target='linux'):
             code.append(f"    add %rcx, %rsi")
             code.append(f"    mov {char_byte}, (%rsi)")
 
-        elif op == 'SKRIV_BUF':
+        elif op == 'SKRIV_BUF_NL':
             buf_name = stmt[1]
             named_buffers.add(buf_name)
             if target == 'windows':
@@ -916,6 +968,31 @@ def compile_to_asm(stmts, target='linux'):
                 code.append(f"    syscall")
                 code.append(f"    lea _nl(%rip), %rsi")
                 code.append(f"    mov $1, %rdx")
+                code.append(f"    mov $1, %edi")
+                code.append(f"    mov $1, %eax")
+                code.append(f"    syscall")
+
+        elif op == 'SKRIV_BUF':
+            buf_name = stmt[1]
+            named_buffers.add(buf_name)
+            fmt_s_used[0] = True
+            if target == 'windows':
+                to_save, align_pad = win_call_save()
+                code.append(f"    lea fmt_s(%rip), %rcx")
+                code.append(f"    lea {buf_name}(%rip), %rdx")
+                code.append(f"    call printf")
+                win_call_restore(to_save, align_pad)
+            else:
+                lbl_start = new_label()
+                lbl_end = new_label()
+                code.append(f"    lea {buf_name}(%rip), %rsi")
+                code.append(f"    xor %rdx, %rdx")
+                code.append(f"{lbl_start}:")
+                code.append(f"    cmpb $0, (%rsi,%rdx)")
+                code.append(f"    je {lbl_end}")
+                code.append(f"    inc %rdx")
+                code.append(f"    jmp {lbl_start}")
+                code.append(f"{lbl_end}:")
                 code.append(f"    mov $1, %edi")
                 code.append(f"    mov $1, %eax")
                 code.append(f"    syscall")
@@ -963,12 +1040,19 @@ def compile_to_asm(stmts, target='linux'):
     data.append(".data")
     if target == 'windows':
         data.append('fmt_int: .asciz "%lld\\n"')
+        if fmt_int_nonl_used[0]:
+            data.append('fmt_int_nonl: .asciz "%lld"')
+        if fmt_s_used[0]:
+            data.append('fmt_s: .asciz "%s"')
     for i, s in enumerate(strings):
         escaped = s.replace('\\', '\\\\').replace('\n', '\\n').replace('"', '\\"')
         if target == 'windows':
             data.append(f"msg_{i}: .asciz \"{escaped}\"")
         else:
             data.append(f"msg_{i}: .ascii \"{escaped}\\n\\0\"")
+    for i, s in enumerate(strings_nonl):
+        escaped = s.replace('\\', '\\\\').replace('\n', '\\n').replace('"', '\\"')
+        data.append(f"msg_nonl_{i}: .asciz \"{escaped}\"")
     for i, s in enumerate(lit_strings):
         escaped = s.replace('\\', '\\\\').replace('"', '\\"')
         data.append(f'lit_{i}: .asciz "{escaped}"')
