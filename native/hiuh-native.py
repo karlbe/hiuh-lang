@@ -429,7 +429,12 @@ def compile_to_asm(stmts):
     def alloc_var(v):
         nonlocal next_reg
         if v not in var_reg:
-            var_reg[v] = reg_names[next_reg % 4]
+            reg = reg_names[next_reg % 4]
+            # Never allocate reserved registers
+            while reg in reserved:
+                next_reg += 1
+                reg = reg_names[next_reg % 4]
+            var_reg[v] = reg
             next_reg += 1
         return var_reg[v]
     

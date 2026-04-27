@@ -26,38 +26,17 @@
 - [x] Stöd för `x är y pluss z` i tokenizer (adb13ef)
 
 ## Kända buggar
-- Fibonacci loop ger 0 istället för 5 - troligen register-allokeringsproblem med 2 register
-- END-token i FOR-loopen borde inte tas med i body (den skippar inte alltid END korrekt)
+- [x] Fibonacci loop ger 0 istället för 5 (d761e3f - expanded register pool)
+- [x] Funktioner returnerar fel värde (r14 allokering fixad)
 
 ## Test-kommandon
 ```bash
 # Testa tokenizer
 python3 native/hiuh-native.py hiuh-tokenizer.hiuh /tmp/test && printf "Hej" | /tmp/test
-# Testa Fibonacci (iterativ)
-cat > /tmp/fibo.hiuh << 'EOF'
-Sätt a till 0
-Sätt b till 1
-För i från 0 till 5
-    Sätt temp till b
-    b är a pluss b
-    a är temp
-Hejdå
-Skriv värdet av a
-EOF
-python3 native/hiuh-native.py /tmp/fibo.hiuh /tmp/fibo && printf "" | /tmp/fibo | od -c
-# Testa funktion med IF-ELSE
-cat > /tmp/test-max.hiuh << 'EOF'
-Sätt max till grej med a, b
-    Om a är större än b
-        ge a
-    Annars
-        ge b
-Hejdå
-Sätt resultat till max med 3, 7
-Skriv värdet av resultat
-EOF
-python3 native/hiuh-native.py /tmp/test-max.hiuh /tmp/test-max && printf "" | /tmp/test-max | od -c
-```
+# Testa Fibonacci (iterativ) - FIXAT!
+python3 native/hiuh-native.py /tmp/fibo.hiuh /tmp/fibo && printf "" | /tmp/fibo
+# Testa funktion (dubbla) - FIXAT!
+python3 native/hiuh-native.py /tmp/test-dubbla.hiuh /tmp/test-dubbla && printf "" | /tmp/test-dubbla
 
 ## Senaste commits
 - ab98ccd: Fix: IF-ELSE handling in parser and compiler
