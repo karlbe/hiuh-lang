@@ -528,13 +528,13 @@ def compile_to_asm(stmts, target='linux'):
             reg = resolve(stmt[1])
             if target == 'windows':
                 if reg.startswith('$'):
-                    code.append(f"    mov {reg}, %ecx  # putchar {stmt[1]}")
+                    code.append(f"    mov {reg}, %rdx")
                 elif reg == '%r15':
-                    code.append(f"    movzx %r15b, %ecx")
+                    code.append(f"    movzx %r15b, %rdx")
                 else:
-                    byte_reg = reg.replace('%r12', '%r12b').replace('%r13', '%r13b').replace('%r8', '%r8b').replace('%r9', '%r9b').replace('%r10', '%r10b').replace('%r11', '%r11b')
-                    code.append(f"    movzx {byte_reg}, %ecx")
-                code.append(f"    call putchar")
+                    code.append(f"    mov {reg}, %rdx")
+                code.append(f"    lea fmt_int(%rip), %rcx")
+                code.append(f"    call printf")
             else:
                 if reg.startswith('$'):
                     code.append(f"    mov {reg}, %rax  # print {stmt[1]}")
@@ -577,8 +577,8 @@ def compile_to_asm(stmts, target='linux'):
             idx = stmt[2]
             source = stmt[3]
             reg = alloc_var(var)
-            # Generate CHAR_AT code, then move result to target
             compile_stmt(('CHAR_AT', idx, source))
+            code.append(f"    movzx %r15b, %r15")
             code.append(f"    mov %r15, {reg}  # {var} = tecken")
         
         elif op == 'PLUS':
@@ -751,9 +751,11 @@ def compile_to_asm(stmts, target='linux'):
         
         elif op == 'READ':
             if target == 'windows':
+                code.append(f"    mov $0, %ecx")
+                code.append(f"    call __acrt_iob_func  # get stdin FILE*")
+                code.append(f"    mov %rax, %r8")
                 code.append(f"    lea input_buf(%rip), %rcx")
                 code.append(f"    mov $256, %edx")
-                code.append(f"    mov __acrt_iob_func@PLT, %r8  # stdin placeholder")
                 code.append(f"    call fgets")
             else:
                 code.append(f"    mov $0, %eax  # read")
@@ -803,6 +805,8 @@ def compile_to_asm(stmts, target='linux'):
             code.append(f"    syscall")
 
     data.append(".data")
+    if target == 'windows':
+        data.append('fmt_int: .asciz "%lld\\n"')
     for i, s in enumerate(strings):
         escaped = s.replace('\\', '\\\\').replace('\n', '\\n').replace('"', '\\"')
         if target == 'windows':
@@ -823,6 +827,8 @@ def compile_to_asm(stmts, target='linux'):
         out.append("    pushq %rbp")
         out.append("    movq %rsp, %rbp")
         out.append("    subq $32, %rsp  # 32-byte shadow space (keeps 16-byte alignment)")
+        out.append("    mov $65001, %ecx")
+        out.append("    call SetConsoleOutputCP")
     else:
         out.append(".globl _start")
         out.append("_start:")
@@ -844,11 +850,11 @@ def main():
         return
     
     if sys.argv[1] == '-' or sys.argv[1] == '--stdin':
-        src = sys.stdin.read()
+        src = sys.stdin.buffer.read().decode('utf-8')
     elif sys.argv[1] == '--asm' or sys.argv[1] == '--ord-lista':
-        src = open(sys.argv[2]).read()
+        src = open(sys.argv[2], encoding='utf-8').read()
     else:
-        src = open(sys.argv[1]).read()
+        src = open(sys.argv[1], encoding='utf-8').read()
     
     result = tokenize(src)
     if isinstance(result, tuple):
@@ -895,7 +901,7 @@ def main():
 
         ld_cmd = [CONFIG['ld'], '-o', output, obj_file]
         if target == 'windows':
-            ld_cmd += ['-lmingw32', '-lmsvcrt']
+            ld_cmd += ['-lmingw32', '-lmsvcrt', '-lkernel32']
         try:
             r = subprocess.run(ld_cmd, capture_output=True, text=True)
         except FileNotFoundError:

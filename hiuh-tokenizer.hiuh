@@ -2,19 +2,27 @@
 # Läser text via stdin, delar vid mellanslag
 # Output: Antal ord
 
-# Initiera
 Sätt antal till 0
-
-# Läs text från stdin
+Sätt i_ord till 0
+Sätt klar till 0
 Läs
-
-# Loopa igenom text tecken för tecken
 För i från 0 till 255
     Sätt tecken till tecken i ur källa
+    Om tecken är 0
+        Skriv värdet av antal
+        JagMåsteGåNu 0
+    Hejdå
     Om tecken är mindre än 33
+        Sätt klar till i_ord
+        Sätt i_ord till 0
+    Hejdå
+    Om tecken är större än 32
+        Sätt i_ord till 1
+        Sätt klar till 0
+    Hejdå
+    Om klar är 1
         Sätt antal till antal pluss 1
+        Sätt klar till 0
     Hejdå
 Hejdå
-
-# Skriv ut antal ord
 Skriv värdet av antal
