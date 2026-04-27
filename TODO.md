@@ -16,9 +16,11 @@
 - [x] Register-konflikt: r14/r15 reserverade för stack/tecken (4da9973)
 - [x] IF-ELSE i funktioner fungerar nu! (ab98ccd)
 - [x] Fibonacci loop ger rätt svar! (56a82a9 - %4 → %6)
+- [x] **SKRIV_VAR fungerar nu** - fixade byte-register hantering (2a637d5)
+- [x] **CHAR_AT i variabel** - ny SET_CHAR_AT hantering (2a637d5)
 
 ### Medium prioritet  
-- [x] Tokenizer: bygg ord genom att jämföra med mellanslag (32) - TODO.md updated
+- [x] Tokenizer: bygg ord genom att jämföra med mellanslag (32)
 - [x] Lagra tokens i en lista - tokenizer returnerar nu (tokens, ord_lista)
 - [x] Funktionstyper: `Sätt <namn> till grej med x, y` för att skapa funktioner
 - [x] Stöd för `x är y` i tokenizer → SET (58a596c)
