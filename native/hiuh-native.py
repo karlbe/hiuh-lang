@@ -129,10 +129,10 @@ def tokenize(src):
             tokens.append(('CMP_GT', var1, var2))
         
         elif first == 'är':
-            # "x är y" comparison
+            # "x är y" → SET x y (simple assignment, not comparison)
             var1 = words[0]
             var2 = words[2] if len(words) > 2 else '0'
-            tokens.append(('CMP_EQ', var1, var2))
+            tokens.append(('SET', var1, var2))
         
         elif 'är' in words and 'pluss' in words:
             # "x är y pluss z" → PLUS x y z
@@ -142,6 +142,13 @@ def tokenize(src):
             left = ' '.join(parts[:pluss_idx]).strip()
             right = ' '.join(parts[pluss_idx+1:]).strip()
             tokens.append(('PLUS', var, left, right))
+        
+        elif 'är' in words and first != 'är':
+            # "x är y" → SET x y (when first is not 'är')
+            var = first
+            idx = words.index('är')
+            val = words[idx+1] if idx+1 < len(words) else '0'
+            tokens.append(('SET', var, val))
         
         elif first == 'Lägg' and len(words) >= 5:
             if words[1] == 'till':
