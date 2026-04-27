@@ -3,30 +3,33 @@
 
 Sätt antal till 0
 Sätt j till 0
-Sätt ord_len till 0
+Sätt j_end till 0
+Sätt i_ord till 0
+Sätt klar till 0
 Läs
 För i från 0 till 255
     Sätt tecken till tecken i ur källa
     Om tecken är 0
-        Om j är större än 0
-            Lagra j vid ord_len i ord_buf
-            Skriv text i ord_buf
-            Sätt antal till antal pluss 1
-            Sätt j till 0
-        Hejdå
+        Skriv värdet av antal
         JagMåsteGåNu 0
     Hejdå
     Om tecken är mindre än 33
-        Om j är större än 0
-            Lagra j vid ord_len i ord_buf
-            Skriv text i ord_buf
-            Sätt antal till antal pluss 1
-            Sätt j till 0
-        Hejdå
+        Sätt klar till i_ord
+        Sätt j_end till j
+        Sätt i_ord till 0
     Hejdå
     Om tecken är större än 32
         Lagra tecken vid j i ord_buf
         Sätt j till j pluss 1
+        Sätt i_ord till 1
+        Sätt klar till 0
+    Hejdå
+    Om klar är 1
+        Lagra i_ord vid j_end i ord_buf
+        Skriv text i ord_buf
+        Sätt antal till antal pluss 1
+        Sätt j till 0
+        Sätt klar till 0
     Hejdå
 Hejdå
 Skriv värdet av antal
