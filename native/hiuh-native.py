@@ -460,8 +460,10 @@ def compile_to_asm(stmts):
         return f'L{labels[0]}'
     
     def resolve(v):
-        # Special case: 'tecken' is always in r15 (last CHAR_AT result)
+        # Handle 'tecken' - if explicitly stored in a register, use that; otherwise use r15
         if v == 'tecken' or v == '_tecken':
+            if v in var_reg:
+                return var_reg[v]
             return '%r15'
         # Check if it's a number
         try:

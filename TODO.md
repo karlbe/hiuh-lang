@@ -14,31 +14,40 @@
 - [x] IF-ELSE i FOR fungerar nu! (commit 5672cfe)
 - [x] CMP_LT genererar nu korrekt assembly (5672cfe)
 - [x] Register-konflikt: r14/r15 reserverade för stack/tecken (4da9973)
-- [x] **IF-ELSE i funktioner fungerar nu!** (commit ab98ccd)
-  - ELSE body kompilerades inte tidigare - nu fixat
-  - RETURN i IF/ELSE body fungerar
+- [x] IF-ELSE i funktioner fungerar nu! (ab98ccd)
+- [x] Fibonacci loop ger rätt svar! (56a82a9 - %4 → %6)
 
 ### Medium prioritet  
-- [x] Stöd för `x är y` i tokenizer → SET (58a596c)
 - [ ] Tokenizer: bygg ord genom att jämföra med mellanslag (32)
 - [ ] Lagra tokens i en lista
-- [x] **Funktionstyper**: `Sätt <namn> till grej med x, y` för att skapa funktioner
+- [x] Funktionstyper: `Sätt <namn> till grej med x, y` för att skapa funktioner
+- [x] Stöd för `x är y` i tokenizer → SET (58a596c)
 - [x] Stöd för `x är y pluss z` i tokenizer (adb13ef)
 
-## Kända buggar
-- [x] Fibonacci loop ger 0 istället för 5 (d761e3f - expanded register pool)
-- [x] Funktioner returnerar fel värde (r14 allokering fixad)
+## Lower prioritet
+- [ ] Självkompilering: HIUH kompilerar HIUH
 
 ## Test-kommandon
 ```bash
 # Testa tokenizer
 python3 native/hiuh-native.py hiuh-tokenizer.hiuh /tmp/test && printf "Hej" | /tmp/test
-# Testa Fibonacci (iterativ) - FIXAT!
-python3 native/hiuh-native.py /tmp/fibo.hiuh /tmp/fibo && printf "" | /tmp/fibo
-# Testa funktion (dubbla) - FIXAT!
-python3 native/hiuh-native.py /tmp/test-dubbla.hiuh /tmp/test-dubbla && printf "" | /tmp/test-dubbla
+
+# Testa Fibonacci (iterativ)
+cat > /tmp/fibo.hiuh << 'EOF'
+Sätt a till 0
+Sätt b till 1
+För i från 0 till 5
+    Sätt temp till b
+    b är a pluss b
+    a är temp
+Hejdå
+Skriv värdet av a
+EOF
+python3 native/hiuh-native.py /tmp/fibo.hiuh /tmp/fibo && printf "" | /tmp/fibo | od -c
+# Ska ge 0000005 (fibonacci 5 = 0,1,1,2,3,5)
+```
 
 ## Senaste commits
+- 56a82a9: Fix: modulo was %4 but reg_names has 6 entries - caused overflow
 - ab98ccd: Fix: IF-ELSE handling in parser and compiler
-- 3a90cdd: TODO: document known bugs with register allocation and END token
-- 58a596c: Fix: tokenizer now handles 'x är y' as SET instead of CMP_EQ
+- d761e3f: Fix: expanded register pool from 2 to 4 registers - fixes Fibonacci loop
