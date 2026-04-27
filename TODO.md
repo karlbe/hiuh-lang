@@ -16,6 +16,7 @@
 - [x] Register-konflikt: r14/r15 reserverade för stack/tecken (4da9973)
 
 ### Medium prioritet  
+- [x] Stöd för `x är y` i tokenizer → SET (58a596c)
 - [ ] Tokenizer: bygg ord genom att jämföra med mellanslag (32)
 - [ ] Lagra tokens i en lista
 - [ ] **Funktionstyper**: `Sätt <namn> till grej med x, y` för att skapa funktioner (delvis fixat)
@@ -29,6 +30,18 @@
 ```bash
 # Testa tokenizer
 python3 native/hiuh-native.py hiuh-tokenizer.hiuh /tmp/test && printf "Hej" | /tmp/test
+# Testa Fibonacci (iterativ)
+cat > /tmp/fibo.hiuh << 'EOF'
+Sätt a till 0
+Sätt b till 1
+För i från 0 till 5
+    Sätt temp till b
+    b är a pluss b
+    a är temp
+Hejdå
+Skriv värdet av a
+EOF
+python3 native/hiuh-native.py /tmp/fibo.hiuh /tmp/fibo && printf "" | /tmp/fibo | od -c
 ```
 
 ## Senaste commits
