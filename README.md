@@ -1,6 +1,6 @@
 # HIUH - Svensk programmering på mobilvänligt språk
 
-> **Obs:** Detta är `hiuhpp`-grenen – en hårt typad version med fokus på felupptäckt i kompilatorn!
+> **Mobilvänlig programmering utan specialtecken!**
 
 ## Filosofin bakom HIUH
 
@@ -11,14 +11,10 @@
 
 ## Designprinciper
 
-### Inga citattecken, inga hakparenteser, inget plus!
-**Citattecken (`"`, `'`) är JÄVULENS PÅFUND!** Förbjudna.
-**Hakparenteser (`[]`) är JÄVULENS PÅFUND!** Förbjudna.
-**Plus (`+`) är JÄVULENS PÅFUND!** Förbjudet för strängar.
-
-Istället för `text + text` → `text sammanfogat med text`
-Istället för `lista[i]` → `element i ur lista`
-Istället för `text[i]` → `tecken i ur text`
+### Inga citattecken, inga hakparenteser, inget plus för strängar!
+**Citattecken (`"`, `'`) är JÄVULENS PÅFUND!** Kräver Shift på mobil.
+**Hakparenteser (`[]`) är JÄVULENS PÅFUND!** Svårt på mobil.
+**Kommatecken (,) och punkt (.) är däremot helt okej!**
 
 Istället för `Skriv "hej"` → `Skriv hej` (allt efter kommandot är texten!)
 
@@ -96,10 +92,14 @@ Hejdå
 ### Funktioner
 
 ```
-Grej <namn>(<parametrar>)
+Grej <namn> <param1> <param2>
     <satser>
-Grej SLUT
+Hejdå
+
+Anropa <namn> med <arg1> <arg2>
 ```
+
+(Hejdå är **obligatoriskt** för `Grej`-block)
 
 ### Jämförelseoperatorer
 
@@ -116,7 +116,7 @@ Grej SLUT
 
 | Operator | Betydelse |
 |----------|-----------|
-| `plus` | addition (`+`) |
+| `pluss` | addition (`+`) |
 | `minus` | subtraktion (`-`) |
 | `gånger` | multiplikation (`*`) |
 | `delat` | division (`/`) |
@@ -128,6 +128,40 @@ Grej SLUT
 | `och` | logiskt OCH (`&&`) |
 | `eller` | logiskt ELLER (`\|\|`) |
 | `inte` | logiskt INTE (`!`) |
+
+### Listor
+
+```
+Sätt <namn> till lista                      # Skapa tom lista
+Sätt <namn> till lista av 1, 2, 3           # Skapa lista med värden
+Lägg till <värde> till <lista>              # Lägg till element
+Antal element i <lista>                      # Antal element
+element <index> ur <lista>                   # Hämta element
+```
+
+### Strängmanipulation
+
+```
+a sammanfogat_med b                          # Konkatenera (infix notation!)
+tecken <index> ur <text>                    # Hämta tecken
+element <index> ur <lista>                  # Hämta element (istället för lista[i])
+hämta element <index> från <lista>          # Också OK!
+```
+
+### File-I/O
+
+```
+Öppna <fil> för läsning som <namn>         # Öppna fil
+Läs <namn>                                  # Läs fil
+SkrivTillFil <fil>, <text>                  # Skriv till fil
+```
+
+### Programavslutning
+
+```
+Jag måste gå nu                              # exit(0)
+Jag måste gå nu <kod>                       # exit(kod)
+```
 
 ### Datatyper (planerade för hiuhpp)
 
@@ -143,8 +177,8 @@ Grej SLUT
 | Funktion | Beskrivning |
 |----------|-------------|
 | `Slumptal` | Returnerar ett slumpmässigt heltal 0-99 |
-| `input(<prompt>)` | Läser in från användaren |
-| `Längd(<lista>)` | Returnerar antalet element i en lista |
+| `Läs` | Läser text från användaren |
+| `Antal element i <lista>` | Returnerar antalet element i en lista |
 
 ## Exempelprogram
 
@@ -157,8 +191,8 @@ Skriv Hej världen
 ```
 Sätt x till 10
 Sätt y till 20
-Sätt z till x plus y
-Skriv z
+Sätt z till x pluss y
+Skriv värdet av z
 ```
 
 ### Villkor
@@ -177,7 +211,7 @@ Hejdå
 ```
 Sätt summa till 0
 För i från 1 till 100
-    Sätt summa till summa plus i
+    Sätt summa till summa pluss i
 Hejdå
 Skriv summa
 ```
@@ -221,7 +255,7 @@ Ett centralt mål för `hiuhpp` är **statisk typkontroll**. Följande kontrolle
 
 4. **Fel antal parametrar till funktioner**
    ```
-   Sätt resultat till Slumptal(5)  # FEL: Slumptal tar inga parametrar
+   Sätt resultat till Slumptal 5  # FEL: Slumptal tar inga parametrar
    ```
 
 5. **Använda variabel före deklaration**
@@ -234,7 +268,7 @@ Ett centralt mål för `hiuhpp` är **statisk typkontroll**. Följande kontrolle
 
 | Operation | Tillåtna typer | Resultat |
 |-----------|---------------|----------|
-| `plus`, `minus`, `gånger`, `delat` | Heltal, Decimal | samma typ |
+| `pluss`, `minus`, `gånger`, `delat` | Heltal, Decimal | samma typ |
 | `är`, `är inte`, `är större`, `är mindre` | måste matcha | JaNej |
 | `Skriv` | alla typer | Text (konverterar automatiskt) |
 | `Sätt x till` | alla typer | samma typ som värdet |
