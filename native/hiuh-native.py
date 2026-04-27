@@ -514,6 +514,10 @@ def compile_to_asm(stmts):
                 code.append(f"    mov {reg}, %rax  # print {stmt[1]}")
                 code.append(f"    lea num_buf(%rip), %rsi")
                 code.append(f"    mov %al, (%rsi)")
+            elif reg == '%r15':
+                # Special case: r15b for byte access
+                code.append(f"    lea num_buf(%rip), %rsi")
+                code.append(f"    mov %r15b, (%rsi)")
             elif reg in ['%r12', '%r13', '%r8', '%r9', '%r10', '%r11']:
                 # 64-bit register - extract low byte
                 byte_reg = reg.replace('%r12', '%r12b').replace('%r13', '%r13b').replace('%r8', '%r8b').replace('%r9', '%r9b').replace('%r10', '%r10b').replace('%r11', '%r11b')

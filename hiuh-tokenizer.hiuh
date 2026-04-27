@@ -1,6 +1,14 @@
-# Testa funktionstyper - enkelt
-Sätt dubbla till grej med n
-    ge n
+# HIUH Tokenizer - bygg ord genom att jämföra med mellanslag (32)
+# Nästa steg: lagra tokens i en lista
+
+Läs
+Sätt längd till 0
+Sätt i till 0
+
+# Hitta längden på input (max 256)
+För i från 0 till 256
+    Sätt tecken till tecken i ur källa
+    Om tecken är 0
+        Sätt längd till i
+    Hejdå
 Hejdå
-Sätt a till dubbla med 5
-Skriv värdet av a

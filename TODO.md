@@ -16,9 +16,11 @@
 - [x] Register-konflikt: r14/r15 reserverade för stack/tecken (4da9973)
 - [x] IF-ELSE i funktioner fungerar nu! (ab98ccd)
 - [x] Fibonacci loop ger rätt svar! (56a82a9 - %4 → %6)
+- [x] **SKRIV_VAR fungerar nu** - fixade byte-register hantering (2a637d5)
+- [x] **CHAR_AT i variabel** - ny SET_CHAR_AT hantering (2a637d5)
 
 ### Medium prioritet  
-- [x] Tokenizer: bygg ord genom att jämföra med mellanslag (32) - TODO.md updated
+- [x] Tokenizer: bygg ord genom att jämföra med mellanslag (32)
 - [x] Lagra tokens i en lista - tokenizer returnerar nu (tokens, ord_lista)
 - [x] Funktionstyper: `Sätt <namn> till grej med x, y` för att skapa funktioner
 - [x] Stöd för `x är y` i tokenizer → SET (58a596c)
@@ -47,7 +49,14 @@ python3 native/hiuh-native.py /tmp/fibo.hiuh /tmp/fibo && printf "" | /tmp/fibo 
 # Ska ge 0000005 (fibonacci 5 = 0,1,1,2,3,5)
 ```
 
+## Kända buggar
+- Hejdå i IF-body bryter inte FOR-loopen (behöver språk-stöd för nested breaks)
+- Input med null-terminator: input_buf läser mer än vad som skickas
+
 ## Senaste commits
+- 4a77fd2: Tokenizer: HIUH tokenizer with character-by-character analysis
+- 2a637d5: Fix: SKRIV_VAR byte handling and register allocation
+- aa53827: Update TODO: mark fixes for SKRIV_VAR, SET_CHAR_AT
 - 56a82a9: Fix: modulo was %4 but reg_names has 6 entries - caused overflow
 - ab98ccd: Fix: IF-ELSE handling in parser and compiler
 - d761e3f: Fix: expanded register pool from 2 to 4 registers - fixes Fibonacci loop
