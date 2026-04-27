@@ -57,11 +57,18 @@ def tokenize(src):
                 left = parts[0].strip()
                 right = parts[1].strip() if len(parts) > 1 else '0'
                 tokens.append(('PLUS', var, left, right))
-            elif rest.startswith('grej med '):
-                # Function definition: Sätt foo till grej med x, y
-                params_str = rest[len('grej med '):]
+            elif rest.lower().startswith('grej med '):
+                # Inline lambda: Sätt foo till Grej med x, y
+                params_str = rest[rest.lower().index('grej med ') + len('grej med '):]
                 params = [p.strip() for p in params_str.split(',')]
-                tokens.append(('FUNC_DEF', var, params))
+                tokens.append(('GREJ_DEF', var, params))
+            elif rest.startswith('Anropa ') and ' med ' in rest:
+                # Real function call with result: Sätt x till Anropa foo med a, b
+                rest2 = rest[len('Anropa '):]
+                parts = rest2.split(' med ', 1)
+                func_name = parts[0].strip()
+                args = [a.strip() for a in parts[1].split(',')]
+                tokens.append(('ANROPA_RES', var, func_name, args))
             elif rest.startswith('Jämför ') and ' med ' in rest:
                 # Sätt x till Jämför buf med lit
                 rw = rest.split()
@@ -78,12 +85,12 @@ def tokenize(src):
                 buf2 = rw[med_i + 1] if med_i + 1 < len(rw) else ''
                 if buf1 and buf2:
                     tokens.append(('CMP_BUF_BUF', var, buf1, buf2))
-            elif ' med ' in rest and not rest.startswith('grej '):
-                # Function call: Sätt a till min med 2, 3
-                parts = rest.split(' med ')
+            elif ' med ' in rest and not rest.lower().startswith('grej ') and not rest.startswith('Anropa '):
+                # Inline function call: Sätt a till min med 2, 3
+                parts = rest.split(' med ', 1)
                 func_name = parts[0].strip()
                 args = [a.strip() for a in parts[1].split(',')]
-                tokens.append(('FUNC_CALL', var, func_name, args))
+                tokens.append(('GREJ_CALL', var, func_name, args))
             elif rest.startswith('tecken ') and ' ur ' in rest:
                 # CHAR_AT: Sätt tecken till tecken i ur källa
                 parts = rest.split(' ur ')
@@ -187,6 +194,29 @@ def tokenize(src):
                 buf2 = words[med_i + 1] if med_i + 1 < len(words) else ''
                 if buf1 and buf2:
                     tokens.append(('CMP_BUF_BUF', 'träff', buf1, buf2))
+
+        elif first == 'Funktion':
+            # Real function definition: Funktion foo med x, y
+            name = words[1] if len(words) > 1 else ''
+            if 'med' in words:
+                med_i = words.index('med')
+                args_str = ' '.join(words[med_i+1:])
+                params = [p.strip() for p in args_str.split(',') if p.strip()]
+            else:
+                params = []
+            tokens.append(('FUNC_DEF', name, params))
+
+        elif first == 'Anropa':
+            # Real function call, discard result: Anropa foo med a, b
+            if len(words) > 1:
+                func_name = words[1]
+                if 'med' in words:
+                    med_i = words.index('med')
+                    args_str = ' '.join(words[med_i+1:])
+                    args = [a.strip() for a in args_str.split(',') if a.strip()]
+                else:
+                    args = []
+                tokens.append(('ANROPA', func_name, args))
 
         elif first == 'Sålänge':
             rest = words[1:]
@@ -385,7 +415,12 @@ def parse(tokens):
             body, i = parse_block(i)
             stmts.append(('WHILE', tok[1], tok[2], tok[3], body))
         elif tok[0] == 'FUNC_DEF':
-            # Parse function body until END, handling nested IF-ELSE
+            # Real function: parse body with parse_block
+            i += 1
+            body, i = parse_block(i)
+            stmts.append(('REAL_FUNC', tok[1], tok[2], body))
+        elif tok[0] == 'GREJ_DEF':
+            # Inline lambda: parse function body until END, handling nested IF-ELSE
             body = []
             i += 1
             depth = 1
@@ -476,8 +511,8 @@ def parse(tokens):
                     else:
                         body.append(tok2)
                         i += 1
-            stmts.append(('FUNC', tok[1], tok[2], body))
-        elif tok[0] == 'FUNC_CALL':
+            stmts.append(('GREJ', tok[1], tok[2], body))
+        elif tok[0] in ('GREJ_CALL', 'ANROPA', 'ANROPA_RES'):
             stmts.append(tok)
             i += 1
         elif tok[0] == 'IF':
@@ -551,9 +586,11 @@ def compile_to_asm(stmts, target='linux'):
     strings = []
     
     var_reg = {}
-    func_defs = {}  # Store function definitions
-    next_reg = 0
-    # r12-r15 for variables; r14=stack ptr, r15=char/temp (reserved)
+    grej_defs = {}
+    next_reg = [0]
+    pending_real_funcs = []
+    in_real_func = [False]
+    func_returned = [False]
     reg_names = ['%r12', '%r13', '%r8', '%r9', '%r10', '%r11', '%rbp']  # 7 vars max
     # Track reserved registers
     reserved = {'%r14': 'stack pointer', '%r15': 'temp/char result'}
@@ -567,15 +604,13 @@ def compile_to_asm(stmts, target='linux'):
     strings_nonl = []  # strings for SKRIV (no newline)
 
     def alloc_var(v):
-        nonlocal next_reg
         if v not in var_reg:
-            reg = reg_names[next_reg % len(reg_names)]
-            # Never allocate reserved registers
+            reg = reg_names[next_reg[0] % len(reg_names)]
             while reg in reserved:
-                next_reg += 1
-                reg = reg_names[next_reg % len(reg_names)]
+                next_reg[0] += 1
+                reg = reg_names[next_reg[0] % len(reg_names)]
             var_reg[v] = reg
-            next_reg += 1
+            next_reg[0] += 1
         return var_reg[v]
     
     def new_label():
@@ -615,6 +650,71 @@ def compile_to_asm(stmts, target='linux'):
             code.append(f"    pop {reg}")
         if align_pad:
             code.append(f"    addq $8, %rsp  # restore alignment pad")
+
+    def hiuh_call_save(exclude=None):
+        cs = {'%r8', '%r9', '%r10', '%r11'}
+        to_save = sorted(r for r in var_reg.values() if r in cs and r != exclude)
+        align_pad = 8 if len(to_save) % 2 == 1 else 0
+        if align_pad:
+            code.append(f"    subq $8, %rsp")
+        for reg in to_save:
+            code.append(f"    push {reg}")
+        if target == 'windows':
+            code.append(f"    subq $32, %rsp  # shadow space")
+        return to_save, align_pad
+
+    def hiuh_call_restore(to_save, align_pad):
+        if target == 'windows':
+            code.append(f"    addq $32, %rsp")
+        for reg in reversed(to_save):
+            code.append(f"    pop {reg}")
+        if align_pad:
+            code.append(f"    addq $8, %rsp")
+
+    def emit_func_epilogue():
+        if target == 'windows':
+            code.append(f"    addq $32, %rsp")
+        code.append(f"    pop %rbp")
+        code.append(f"    pop %r13")
+        code.append(f"    pop %r12")
+        code.append(f"    ret")
+
+    def compile_real_func(name, params, body):
+        saved_var_reg = dict(var_reg)
+        saved_next_reg = next_reg[0]
+        saved_loop_labels = list(loop_labels)
+        var_reg.clear()
+        next_reg[0] = 0
+        loop_labels.clear()
+        in_real_func[0] = True
+
+        code.append(f"{name}:")
+        code.append(f"    push %r12")
+        code.append(f"    push %r13")
+        code.append(f"    push %rbp")
+        if target == 'windows':
+            code.append(f"    subq $32, %rsp  # shadow space")
+
+        arg_regs = ['%rcx', '%rdx', '%r8', '%r9'] if target == 'windows' else ['%rdi', '%rsi', '%rdx', '%rcx']
+        for j, param in enumerate(params[:4]):
+            reg = alloc_var(param)
+            code.append(f"    mov {arg_regs[j]}, {reg}  # param {param}")
+
+        func_returned[0] = False
+        for s in body:
+            compile_stmt(s)
+
+        if not func_returned[0]:
+            code.append(f"    xor %eax, %eax")
+            emit_func_epilogue()
+        func_returned[0] = False
+
+        in_real_func[0] = False
+        var_reg.clear()
+        var_reg.update(saved_var_reg)
+        next_reg[0] = saved_next_reg
+        loop_labels.clear()
+        loop_labels.extend(saved_loop_labels)
 
     def compile_stmt(stmt):
         op = stmt[0]
@@ -843,33 +943,48 @@ def compile_to_asm(stmts, target='linux'):
                 code.append(f"    mov $60, %rax")
                 code.append(f"    syscall")
         
-        elif op == 'FUNC':
-            # Store function definition for later use
-            # stmt = (FUNC, name, params, body)
-            func_defs[stmt[1]] = stmt
-        
-        elif op == 'FUNC_CALL':
+        elif op == 'GREJ':
+            grej_defs[stmt[1]] = stmt
+
+        elif op == 'GREJ_CALL':
             var, func_name, args = stmt[1], stmt[2], stmt[3]
-            # Simple: inline the function body with args bound to temps
-            if func_name in func_defs:
-                func = func_defs[func_name]
-                params = func[2]
-                body = func[3]
-                # Bind params to args
+            if func_name in grej_defs:
+                grej = grej_defs[func_name]
+                params = grej[2]
+                body = grej[3]
                 for p, a in zip(params, args):
                     compile_stmt(('SET', p, a))
-                # Compile body (stop at RETURN)
                 for s in body:
                     if s[0] == 'RETURN':
-                        # Store return value in special register
-                        ret_val = s[1]
-                        ret_reg = resolve(ret_val)
+                        ret_reg = resolve(s[1])
                         code.append(f"    mov {ret_reg}, %r11  # _result")
                         break
                     compile_stmt(s)
-            # Store result in var
             reg = alloc_var(var)
             code.append(f"    mov %r11, {reg}  # {var} = _result")
+
+        elif op == 'REAL_FUNC':
+            pending_real_funcs.append(stmt)
+
+        elif op == 'ANROPA':
+            func_name, args = stmt[1], stmt[2]
+            to_save, align_pad = hiuh_call_save()
+            arg_regs = ['%rcx', '%rdx', '%r8', '%r9'] if target == 'windows' else ['%rdi', '%rsi', '%rdx', '%rcx']
+            for j, arg in enumerate(args[:4]):
+                code.append(f"    mov {resolve(arg)}, {arg_regs[j]}")
+            code.append(f"    call {func_name}")
+            hiuh_call_restore(to_save, align_pad)
+
+        elif op == 'ANROPA_RES':
+            var, func_name, args = stmt[1], stmt[2], stmt[3]
+            res_reg = alloc_var(var)
+            to_save, align_pad = hiuh_call_save(exclude=res_reg)
+            arg_regs = ['%rcx', '%rdx', '%r8', '%r9'] if target == 'windows' else ['%rdi', '%rsi', '%rdx', '%rcx']
+            for j, arg in enumerate(args[:4]):
+                code.append(f"    mov {resolve(arg)}, {arg_regs[j]}")
+            code.append(f"    call {func_name}")
+            hiuh_call_restore(to_save, align_pad)
+            code.append(f"    mov %rax, {res_reg}  # {var} = result")
         
         elif op == 'ELSE':
             # ELSE body - execute unconditionally after IF
@@ -1207,27 +1322,26 @@ def compile_to_asm(stmts, target='linux'):
             var_reg['tecken'] = '%r15'  # also as "tecken" for compatibility
         
         elif op == 'RETURN':
-            # RETURN in IF/ELSE body - just store the value (don't exit function)
-            ret_val = stmt[1]
-            ret_reg = resolve(ret_val)
-            code.append(f"    mov {ret_reg}, %r11  # _result (return)")
+            ret_reg = resolve(stmt[1])
+            if in_real_func[0]:
+                code.append(f"    mov {ret_reg}, %rax  # return value")
+                emit_func_epilogue()
+                func_returned[0] = True
+            else:
+                code.append(f"    mov {ret_reg}, %r11  # _result (grej)")
     
     has_exit = False
     for stmt in stmts:
         compile_stmt(stmt)
         if stmt[0] == 'EXIT':
             has_exit = True
-    
+
     if not has_exit:
-        if target == 'windows':
-            code.append(f"    xorl %eax, %eax")
-            code.append(f"    addq $32, %rsp")
-            code.append(f"    popq %rbp")
-            code.append(f"    ret")
-        else:
-            code.append(f"    mov $0, %edi")
-            code.append(f"    mov $60, %rax")
-            code.append(f"    syscall")
+        code.append(f"    xor %eax, %eax")
+        emit_func_epilogue()
+
+    for stmt in pending_real_funcs:
+        compile_real_func(stmt[1], stmt[2], stmt[3])
 
     data.append(".data")
     if target == 'windows':
@@ -1264,15 +1378,25 @@ def compile_to_asm(stmts, target='linux'):
     if target == 'windows':
         out.append(".globl main")
         out.append("main:")
-        out.append("    pushq %rbp")
-        out.append("    movq %rsp, %rbp")
-        out.append("    subq $32, %rsp  # 32-byte shadow space (keeps 16-byte alignment)")
+        out.append("    push %r12")
+        out.append("    push %r13")
+        out.append("    push %rbp")
+        out.append("    subq $32, %rsp  # shadow space")
         out.append("    mov $65001, %ecx")
         out.append("    call SetConsoleOutputCP")
+        out.append("    lea stack(%rip), %r14  # init stack ptr")
     else:
         out.append(".globl _start")
         out.append("_start:")
-    out.append("    lea stack(%rip), %r14  # init stack ptr")
+        out.append("    call main")
+        out.append("    xor %edi, %edi")
+        out.append("    mov $60, %rax")
+        out.append("    syscall")
+        out.append("main:")
+        out.append("    push %r12")
+        out.append("    push %r13")
+        out.append("    push %rbp")
+        out.append("    lea stack(%rip), %r14  # init stack ptr")
     out.extend(code)
     out.append("")
     out.extend(data)
