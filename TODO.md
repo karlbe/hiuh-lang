@@ -49,7 +49,14 @@ python3 native/hiuh-native.py /tmp/fibo.hiuh /tmp/fibo && printf "" | /tmp/fibo 
 # Ska ge 0000005 (fibonacci 5 = 0,1,1,2,3,5)
 ```
 
+## Kända buggar
+- Hejdå i IF-body bryter inte FOR-loopen (behöver språk-stöd för nested breaks)
+- Input med null-terminator: input_buf läser mer än vad som skickas
+
 ## Senaste commits
+- 4a77fd2: Tokenizer: HIUH tokenizer with character-by-character analysis
+- 2a637d5: Fix: SKRIV_VAR byte handling and register allocation
+- aa53827: Update TODO: mark fixes for SKRIV_VAR, SET_CHAR_AT
 - 56a82a9: Fix: modulo was %4 but reg_names has 6 entries - caused overflow
 - ab98ccd: Fix: IF-ELSE handling in parser and compiler
 - d761e3f: Fix: expanded register pool from 2 to 4 registers - fixes Fibonacci loop
