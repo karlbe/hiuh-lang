@@ -152,6 +152,15 @@ def tokenize(src):
                 if buf and lit:
                     tokens.append(('CMP_BUF_LIT', buf, lit))
 
+        elif first == 'JämförBuffer':
+            # JämförBuffer X med Y → CMP_BUF_BUF X Y  (runtime buffer vs buffer)
+            if 'med' in words:
+                med_i = words.index('med')
+                buf1 = words[1] if med_i > 1 else ''
+                buf2 = words[med_i + 1] if med_i + 1 < len(words) else ''
+                if buf1 and buf2:
+                    tokens.append(('CMP_BUF_BUF', buf1, buf2))
+
         elif first == 'Om':
             # "Om x är mindre än y" → store comparison type with IF
             rest = words[1:]
@@ -278,7 +287,7 @@ def parse(tokens):
         elif tok[0] == 'STORE_CHAR':
             stmts.append(tok)
             i += 1
-        elif tok[0] == 'CMP_BUF_LIT':
+        elif tok[0] in ('CMP_BUF_LIT', 'CMP_BUF_BUF'):
             stmts.append(tok)
             i += 1
         elif tok[0] in ('SKRIV_BUF', 'SKRIV_BUF_NL'):
@@ -905,6 +914,46 @@ def compile_to_asm(stmts, target='linux'):
                 lbl_done = new_label()
                 code.append(f"    lea {buf_name}(%rip), %rsi")
                 code.append(f"    lea lit_{lit_idx}(%rip), %rdi")
+                code.append(f"{lbl_loop}:")
+                code.append(f"    movb (%rsi), %al")
+                code.append(f"    movb (%rdi), %cl")
+                code.append(f"    cmpb %cl, %al")
+                code.append(f"    jne {lbl_ne}")
+                code.append(f"    testb %al, %al")
+                code.append(f"    jz {lbl_eq}")
+                code.append(f"    inc %rsi")
+                code.append(f"    inc %rdi")
+                code.append(f"    jmp {lbl_loop}")
+                code.append(f"{lbl_eq}:")
+                code.append(f"    mov $1, %rax")
+                code.append(f"    jmp {lbl_done}")
+                code.append(f"{lbl_ne}:")
+                code.append(f"    xor %rax, %rax")
+                code.append(f"{lbl_done}:")
+                code.append(f"    mov %rax, {träff_reg}  # träff = strcmp result")
+
+        elif op == 'CMP_BUF_BUF':
+            buf1, buf2 = stmt[1], stmt[2]
+            named_buffers.add(buf1)
+            named_buffers.add(buf2)
+            träff_reg = alloc_var('träff')
+            if target == 'windows':
+                to_save, align_pad = win_call_save(exclude=träff_reg)
+                code.append(f"    lea {buf1}(%rip), %rcx")
+                code.append(f"    lea {buf2}(%rip), %rdx")
+                code.append(f"    call strcmp")
+                code.append(f"    test %eax, %eax")
+                code.append(f"    sete %al")
+                win_call_restore(to_save, align_pad)
+                code.append(f"    movzx %al, %rax")
+                code.append(f"    mov %rax, {träff_reg}  # träff = strcmp result")
+            else:
+                lbl_loop = new_label()
+                lbl_ne = new_label()
+                lbl_eq = new_label()
+                lbl_done = new_label()
+                code.append(f"    lea {buf1}(%rip), %rsi")
+                code.append(f"    lea {buf2}(%rip), %rdi")
                 code.append(f"{lbl_loop}:")
                 code.append(f"    movb (%rsi), %al")
                 code.append(f"    movb (%rdi), %cl")
