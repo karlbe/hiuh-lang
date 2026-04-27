@@ -8,6 +8,19 @@ import sys
 import subprocess
 import tempfile
 import os
+import configparser
+
+def load_config():
+    cfg = configparser.ConfigParser()
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    cfg.read([os.path.join(script_dir, 'hiuh.cfg'), 'hiuh.cfg'])
+    tools = cfg['tools'] if 'tools' in cfg else {}
+    return {
+        'as': tools.get('as', 'as'),
+        'ld': tools.get('ld', 'ld'),
+    }
+
+CONFIG = load_config()
 
 def tokenize(src):
     tokens = []
@@ -785,15 +798,29 @@ def main():
         asm_file = f.name
     
     obj_file = asm_file + '.o'
-    output = sys.argv[2] if len(sys.argv) > 2 else './hiuh-runner'
+    if len(sys.argv) > 2:
+        output = sys.argv[2]
+    else:
+        base = os.path.splitext(os.path.basename(sys.argv[1]))[0]
+        output = base + ('.exe' if sys.platform == 'win32' else '')
     
     try:
-        r = subprocess.run(['as', '-o', obj_file, asm_file], capture_output=True, text=True)
+        try:
+            r = subprocess.run([CONFIG['as'], '-o', obj_file, asm_file], capture_output=True, text=True)
+        except FileNotFoundError:
+            print(f"Fel: Hittar inte assemblatorn '{CONFIG['as']}'.")
+            print("Sätt rätt sökväg i hiuh.cfg under [tools] as = ...")
+            return
         if r.returncode != 0:
             print(f"as error:\n{r.stderr}")
             return
-        
-        r = subprocess.run(['ld', '-o', output, obj_file], capture_output=True, text=True)
+
+        try:
+            r = subprocess.run([CONFIG['ld'], '-o', output, obj_file], capture_output=True, text=True)
+        except FileNotFoundError:
+            print(f"Fel: Hittar inte länkaren '{CONFIG['ld']}'.")
+            print("Sätt rätt sökväg i hiuh.cfg under [tools] ld = ...")
+            return
         if r.returncode != 0:
             print(f"ld error:\n{r.stderr}")
             return
