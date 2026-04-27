@@ -448,7 +448,7 @@ def parse(tokens):
             i += 1
     return stmts
 
-def compile_to_asm(stmts):
+def compile_to_asm(stmts, target='linux'):
     code = []
     data = []
     strings = []
@@ -501,36 +501,47 @@ def compile_to_asm(stmts):
             s = stmt[1]
             strings.append(s)
             idx = len(strings) - 1
-            code.append(f"    lea msg_{idx}(%rip), %rsi")
-            code.append(f"    mov ${len(s)}, %edx")
-            code.append(f"    mov $1, %edi")
-            code.append(f"    mov $1, %eax")
-            code.append(f"    syscall")
+            if target == 'windows':
+                code.append(f"    lea msg_{idx}(%rip), %rcx")
+                code.append(f"    call puts")
+            else:
+                code.append(f"    lea msg_{idx}(%rip), %rsi")
+                code.append(f"    mov ${len(s) + 1}, %edx")
+                code.append(f"    mov $1, %edi")
+                code.append(f"    mov $1, %eax")
+                code.append(f"    syscall")
         
         elif op == 'SKRIV_VAR':
             reg = resolve(stmt[1])
-            # For immediates, load directly; for registers, use appropriate move
-            if reg.startswith('$'):
-                code.append(f"    mov {reg}, %rax  # print {stmt[1]}")
-                code.append(f"    lea num_buf(%rip), %rsi")
-                code.append(f"    mov %al, (%rsi)")
-            elif reg == '%r15':
-                # Special case: r15b for byte access
-                code.append(f"    lea num_buf(%rip), %rsi")
-                code.append(f"    mov %r15b, (%rsi)")
-            elif reg in ['%r12', '%r13', '%r8', '%r9', '%r10', '%r11']:
-                # 64-bit register - extract low byte
-                byte_reg = reg.replace('%r12', '%r12b').replace('%r13', '%r13b').replace('%r8', '%r8b').replace('%r9', '%r9b').replace('%r10', '%r10b').replace('%r11', '%r11b')
-                code.append(f"    lea num_buf(%rip), %rsi")
-                code.append(f"    mov {byte_reg}, (%rsi)")
+            if target == 'windows':
+                if reg.startswith('$'):
+                    code.append(f"    mov {reg}, %ecx  # putchar {stmt[1]}")
+                elif reg == '%r15':
+                    code.append(f"    movzx %r15b, %ecx")
+                else:
+                    byte_reg = reg.replace('%r12', '%r12b').replace('%r13', '%r13b').replace('%r8', '%r8b').replace('%r9', '%r9b').replace('%r10', '%r10b').replace('%r11', '%r11b')
+                    code.append(f"    movzx {byte_reg}, %ecx")
+                code.append(f"    call putchar")
             else:
-                code.append(f"    lea num_buf(%rip), %rsi")
-                code.append(f"    mov {reg}, %al")
-                code.append(f"    mov %al, (%rsi)")
-            code.append(f"    mov $1, %rdx")
-            code.append(f"    mov $1, %rdi")
-            code.append(f"    mov $1, %eax")
-            code.append(f"    syscall")
+                if reg.startswith('$'):
+                    code.append(f"    mov {reg}, %rax  # print {stmt[1]}")
+                    code.append(f"    lea num_buf(%rip), %rsi")
+                    code.append(f"    mov %al, (%rsi)")
+                elif reg == '%r15':
+                    code.append(f"    lea num_buf(%rip), %rsi")
+                    code.append(f"    mov %r15b, (%rsi)")
+                elif reg in ['%r12', '%r13', '%r8', '%r9', '%r10', '%r11']:
+                    byte_reg = reg.replace('%r12', '%r12b').replace('%r13', '%r13b').replace('%r8', '%r8b').replace('%r9', '%r9b').replace('%r10', '%r10b').replace('%r11', '%r11b')
+                    code.append(f"    lea num_buf(%rip), %rsi")
+                    code.append(f"    mov {byte_reg}, (%rsi)")
+                else:
+                    code.append(f"    lea num_buf(%rip), %rsi")
+                    code.append(f"    mov {reg}, %al")
+                    code.append(f"    mov %al, (%rsi)")
+                code.append(f"    mov $1, %rdx")
+                code.append(f"    mov $1, %rdi")
+                code.append(f"    mov $1, %eax")
+                code.append(f"    syscall")
         
         elif op == 'SET':
             var = stmt[1]
@@ -613,9 +624,13 @@ def compile_to_asm(stmts):
                 code.append(f"{if_end}:")
         
         elif op == 'EXIT':
-            code.append(f"    mov ${stmt[1]}, %edi")
-            code.append(f"    mov $60, %rax")
-            code.append(f"    syscall")
+            if target == 'windows':
+                code.append(f"    mov ${stmt[1]}, %ecx")
+                code.append(f"    call exit")
+            else:
+                code.append(f"    mov ${stmt[1]}, %edi")
+                code.append(f"    mov $60, %rax")
+                code.append(f"    syscall")
         
         elif op == 'FUNC':
             # Store function definition for later use
@@ -655,7 +670,7 @@ def compile_to_asm(stmts):
             code.append(f"{else_end}:")
         
         elif op == 'APPEND':
-            item, target = stmt[1], stmt[2]
+            item, dest = stmt[1], stmt[2]
             if item in var_reg:
                 code.append(f"    mov {var_reg[item]}, %r15  # append {item}")
                 code.append(f"    mov %r15, (%r14)")
@@ -699,12 +714,17 @@ def compile_to_asm(stmts):
             code.append(f"    setg %al")
         
         elif op == 'READ':
-            # Read from stdin into input_buf
-            code.append(f"    mov $0, %eax  # read")
-            code.append(f"    mov $0, %edi  # stdin")
-            code.append(f"    lea input_buf(%rip), %rsi")
-            code.append(f"    mov $256, %edx  # max bytes")
-            code.append(f"    syscall")
+            if target == 'windows':
+                code.append(f"    lea input_buf(%rip), %rcx")
+                code.append(f"    mov $256, %edx")
+                code.append(f"    mov __acrt_iob_func@PLT, %r8  # stdin placeholder")
+                code.append(f"    call fgets")
+            else:
+                code.append(f"    mov $0, %eax  # read")
+                code.append(f"    mov $0, %edi  # stdin")
+                code.append(f"    lea input_buf(%rip), %rsi")
+                code.append(f"    mov $256, %edx  # max bytes")
+                code.append(f"    syscall")
         
         elif op == 'CHAR_AT':
             idx, var = stmt[1], stmt[2]
@@ -736,14 +756,23 @@ def compile_to_asm(stmts):
             has_exit = True
     
     if not has_exit:
-        code.append(f"    mov $0, %edi")
-        code.append(f"    mov $60, %rax")
-        code.append(f"    syscall")
-    
+        if target == 'windows':
+            code.append(f"    xorl %eax, %eax")
+            code.append(f"    addq $32, %rsp")
+            code.append(f"    popq %rbp")
+            code.append(f"    ret")
+        else:
+            code.append(f"    mov $0, %edi")
+            code.append(f"    mov $60, %rax")
+            code.append(f"    syscall")
+
     data.append(".data")
     for i, s in enumerate(strings):
         escaped = s.replace('\\', '\\\\').replace('\n', '\\n').replace('"', '\\"')
-        data.append(f"msg_{i}: .ascii \"{escaped}\\n\\0\"")
+        if target == 'windows':
+            data.append(f"msg_{i}: .asciz \"{escaped}\"")
+        else:
+            data.append(f"msg_{i}: .ascii \"{escaped}\\n\\0\"")
     data.append("num_buf: .byte 0")
     data.append("input_buf: .skip 256")
     data.append(".bss")
@@ -752,9 +781,15 @@ def compile_to_asm(stmts):
     
     out = []
     out.append(".text")
-    out.append(".globl _start")
-    out.append("_start:")
-    # Initialize stack pointer
+    if target == 'windows':
+        out.append(".globl main")
+        out.append("main:")
+        out.append("    pushq %rbp")
+        out.append("    movq %rsp, %rbp")
+        out.append("    subq $32, %rsp  # 32-byte shadow space (keeps 16-byte alignment)")
+    else:
+        out.append(".globl _start")
+        out.append("_start:")
     out.append("    lea stack(%rip), %r14  # init stack ptr")
     out.extend(code)
     out.append("")
@@ -785,29 +820,32 @@ def main():
     else:
         tokens = result
         ord_lista = []
+    use_windows = '--windows' in sys.argv or sys.platform == 'win32'
+    target = 'windows' if use_windows else 'linux'
+
     stmts = parse(tokens)
-    asm = compile_to_asm(stmts)
-    
+    asm = compile_to_asm(stmts, target=target)
+
     if show_ord_lista:
         print(f"ORD_LISTA: {len(ord_lista)} ord")
         print(' '.join(ord_lista))
         return
-    
+
     if show_asm:
         print(asm)
         return
-    
+
     with tempfile.NamedTemporaryFile(mode='w', suffix='.s', delete=False) as f:
         f.write(asm)
         asm_file = f.name
-    
-    obj_file = asm_file + '.o'
-    if len(sys.argv) > 2:
+
+    if len(sys.argv) > 2 and not sys.argv[2].startswith('--'):
         output = sys.argv[2]
     else:
         base = os.path.splitext(os.path.basename(sys.argv[1]))[0]
-        output = base + ('.exe' if sys.platform == 'win32' else '')
-    
+        output = base + ('.exe' if use_windows else '')
+
+    obj_file = asm_file + '.o'
     try:
         try:
             r = subprocess.run([CONFIG['as'], '-o', obj_file, asm_file], capture_output=True, text=True)
@@ -819,8 +857,11 @@ def main():
             print(f"as error:\n{r.stderr}")
             return
 
+        ld_cmd = [CONFIG['ld'], '-o', output, obj_file]
+        if target == 'windows':
+            ld_cmd += ['-lmingw32', '-lmsvcrt']
         try:
-            r = subprocess.run([CONFIG['ld'], '-o', output, obj_file], capture_output=True, text=True)
+            r = subprocess.run(ld_cmd, capture_output=True, text=True)
         except FileNotFoundError:
             print(f"Fel: Hittar inte länkaren '{CONFIG['ld']}'.")
             print("Sätt rätt sökväg i hiuh.cfg under [tools] ld = ...")
@@ -828,7 +869,7 @@ def main():
         if r.returncode != 0:
             print(f"ld error:\n{r.stderr}")
             return
-        
+
         import stat
         os.chmod(output, os.stat(output).st_mode | stat.S_IXUSR)
         print(f"Kompilerade till {output}")
