@@ -81,6 +81,86 @@ För _ från 0 till 9999
                 Skriv BREAK
                 Sätt klar till 2
             Hejdå
+            Jämför ord_buf med till
+            Om träff är 1
+                Skriv TILL
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med från
+            Om träff är 1
+                Skriv FRAN
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med är
+            Om träff är 1
+                Skriv AR
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med pluss
+            Om träff är 1
+                Skriv PLUS
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med ur
+            Om träff är 1
+                Skriv UR
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med vid
+            Om träff är 1
+                Skriv VID
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med med
+            Om träff är 1
+                Skriv MED
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med tecken
+            Om träff är 1
+                Skriv TECKEN
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med än
+            Om träff är 1
+                Skriv AN
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med mindre
+            Om träff är 1
+                Skriv MINDRE
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med större
+            Om träff är 1
+                Skriv STORRE
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med värdet
+            Om träff är 1
+                Skriv VARDET
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med av
+            Om träff är 1
+                Skriv AV
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med text
+            Om träff är 1
+                Skriv TEXT
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med i
+            Om träff är 1
+                Skriv I
+                Sätt klar till 2
+            Hejdå
+            Jämför ord_buf med ge
+            Om träff är 1
+                Skriv GE
+                Sätt klar till 2
+            Hejdå
             Om klar är 1
                 Skriv text i ord_buf
                 Sätt klar till 2
