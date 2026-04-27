@@ -1,20 +1,26 @@
-# HIUH Tokenizer - Räknar ord i text
-# Läser text via stdin, delar vid mellanslag
-# Output: Antal ord
+# HIUH Tokenizer - Räknar ord i text  
+# Läser text via stdin, räknar ord
 
 # Initiera
 Sätt antal till 0
 
-# Läs text från stdin
+# Läs text från stdin  
 Läs
 
-# Loopa igenom text tecken för tecken
+# Loopa igenom
 För i från 0 till 255
     Sätt tecken till tecken i ur källa
-    Om tecken är mindre än 33
+    
+    # Om space (32): räkna
+    Om tecken är 32
         Sätt antal till antal pluss 1
     Hejdå
+    
 Hejdå
+
+# Ord = spaces + 1 (första ordet)
+# Men OM input är tomt: 0 ord
+Sätt antal till antal pluss 1
 
 # Skriv ut antal ord
 Skriv värdet av antal
