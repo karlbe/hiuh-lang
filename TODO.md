@@ -13,16 +13,17 @@
 ### Hög prioritet (FIXAT!)
 - [x] IF-ELSE i FOR fungerar nu! (commit 5672cfe)
 - [x] CMP_LT genererar nu korrekt assembly (5672cfe)
+- [x] Register-konflikt: r14/r15 reserverade för stack/tecken (4da9973)
 
 ### Medium prioritet  
 - [ ] Tokenizer: bygg ord genom att jämföra med mellanslag (32)
 - [ ] Lagra tokens i en lista
-- [ ] **Funktionstyper**: `Sätt <namn> till grej med x, y` för att skapa funktioner
-  - Syntax: `Sätt min till grej med x, y ... ge <retur>`
-  - Anrop: `Sätt a till min med 2, 3`
+- [ ] **Funktionstyper**: `Sätt <namn> till grej med x, y` för att skapa funktioner (delvis fixat)
+- [x] Stöd för `x är y pluss z` i tokenizer (adb13ef)
 
 ### Lower prioritet
 - [ ] Självkompilering: HIUH kompilerar HIUH
+- [ ] Fler register för FOR-loop variabler (spill till minne)
 
 ## Test-kommandon
 ```bash
