@@ -1,37 +1,14 @@
-# HIUH Tokenizer
-# Tar text som input, delar den i ord (mellanslag = avgränsare)
-# Resultat: ord_lista med alla ord
+# HIUH Tokenizer - bygg ord genom att jämföra med mellanslag (32)
+# Nästa steg: lagra tokens i en lista
 
-Sätt splitta till grej med text
-    # Bygg ord genom att skanna text tecken för tecken
-    Sätt nuvarande till 0        # Position i text
-    Sätt antal till 0            # Antal ord
-
-    För i från 0 till 128
-        # Hämta tecken vid position nuvarande
-        Sätt tecken till tecken i ur text
-
-        # Om tecken är mellanslag (32) eller noll (0), avsluta ordet
-        Sätt är_mellanslag till tecken är 32
-        Sätt är_noll till tecken är 0
-
-        # Om vi är vid ett mellanslag eller slut, spara ordet
-        # För nuvarande, gör ingenting (vi bygger ordet)
-        Sätt inget till 0
-
-        # Gå vidare
-        Sätt nuvarande till nuvarande pluss 1
-    Hejdå
-
-    ge antal
-Hejdå
-
-# ---- ENKEL TEST ----
-# Skapa en test-sträng med flera ord
-Sätt test till "alpha beta gamma"
-
-# Testa att läsa input (vi läser från stdin för enkelhet)
 Läs
+Sätt längd till 0
+Sätt i till 0
 
-# Output: antal ord = 3
-Skriv värdet av nuvarande
+# Hitta längden på input (max 256)
+För i från 0 till 256
+    Sätt tecken till tecken i ur källa
+    Om tecken är 0
+        Sätt längd till i
+    Hejdå
+Hejdå
