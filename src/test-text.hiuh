@@ -1,0 +1,21 @@
+. test-text.hiuh — testar Text-typen
+. Förväntad output:
+.   hej världen
+.   hej världen
+.   1
+.   0
+
+Sätt hälsning till texten hej världen
+SkrivNyRad värdet av hälsning
+
+Sätt kopia till hälsning
+SkrivNyRad värdet av kopia
+
+Sätt träff till kopia är hälsning
+SkrivNyRad värdet av träff
+
+Sätt annan till texten något annat
+Sätt träff till annan är hälsning
+SkrivNyRad värdet av träff
+
+JagMåsteGåNu 0
