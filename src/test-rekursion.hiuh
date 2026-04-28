@@ -1,0 +1,18 @@
+Funktion fakultet med n
+    Om n är 0
+        ge 1
+    Hejdå
+    Sätt n1 till n pluss -1
+    Sätt r till Anropa fakultet med n1
+    Sätt res till r pluss 0
+    . multiply n * r manually via loop
+    Sätt acc till 0
+    För i från 0 till n
+        Sätt acc till acc pluss r
+    Hejdå
+    ge acc
+Hejdå
+
+Sätt x till Anropa fakultet med 5
+SkrivNyRad värdet av x
+JagMåsteGåNu 0

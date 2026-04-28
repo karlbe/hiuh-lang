@@ -1,0 +1,30 @@
+Sätt j till 0
+Sätt i_ord till 0
+Läs
+För i från 0 till 255
+    Sätt tecken till tecken i ur källa
+    Om tecken är 0
+        Bryt
+    Hejdå
+    Lagra tecken vid j i buf_a
+    Sätt j till j pluss 1
+Hejdå
+Lagra i_ord vid j i buf_a
+Sätt j till 0
+Läs
+För i från 0 till 255
+    Sätt tecken till tecken i ur källa
+    Om tecken är 0
+        Bryt
+    Hejdå
+    Lagra tecken vid j i buf_b
+    Sätt j till j pluss 1
+Hejdå
+Lagra i_ord vid j i buf_b
+JämförBuffer buf_a med buf_b
+Om träff är 1
+    SkrivNyRad lika
+Hejdå
+Om träff är 0
+    SkrivNyRad olika
+Hejdå

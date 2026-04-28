@@ -1,1 +1,20 @@
-venv/*
+venv/
+__pycache__/
+*.pyc
+
+# Build artifacts
+*.exe
+*.o
+*.s
+*.elf
+*.bin
+out.*
+tok.*
+in.txt
+parser_*.txt
+parser.out
+tok.out
+gcc_*.txt
+debug_tokens.py
+-o
+.claude/

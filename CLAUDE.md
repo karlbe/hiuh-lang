@@ -2,15 +2,13 @@
 
 ## Compiling HIUH programs
 
-Run from the `native\` directory (that's where `hiuh.cfg` is found).
-The source file path can be relative or absolute.
+Run from the repo root. `hiuh.cfg` lives next to the compiler in `compiler/`.
 
 ```
-cd native
-python hiuh-native.py ../source.hiuh [output.exe]
+python compiler/hiuh-native.py src/source.hiuh [output.exe]
 ```
 
-The assembler and linker paths are in `native/hiuh.cfg`:
+The assembler and linker paths are in `compiler/hiuh.cfg`:
 - as: `G:\msys64\mingw64\bin\as.exe`
 - ld: `G:\msys64\mingw64\bin\ld.exe`
 
@@ -19,16 +17,23 @@ The compiler auto-detects Windows (`sys.platform == 'win32'`) so no
 
 To view generated assembly without compiling:
 ```
-python native/hiuh-native.py --asm <source.hiuh>
+python compiler/hiuh-native.py --asm src/source.hiuh
 ```
 
 ## Pipeline (tokenizer → parser)
 
+First compile the tools:
 ```
-native/hiuh-tokenizer.exe < source.hiuh | native/hiuh-parser.exe > out.s
+python compiler/hiuh-native.py src/hiuh-tokenizer.hiuh hiuh-tokenizer.exe
+python compiler/hiuh-native.py src/hiuh-parser.hiuh hiuh-parser.exe
 ```
 
-Then assemble and link manually if needed:
+Then run the pipeline:
+```
+hiuh-tokenizer.exe < source.hiuh | hiuh-parser.exe > out.s
+```
+
+Assemble and link:
 ```
 G:\msys64\mingw64\bin\as.exe -o out.o out.s
 G:\msys64\mingw64\bin\ld.exe -o out.exe out.o -lmingw32 -lmsvcrt -lkernel32
@@ -38,9 +43,13 @@ G:\msys64\mingw64\bin\ld.exe -o out.exe out.o -lmingw32 -lmsvcrt -lkernel32
 
 | File | Purpose |
 |---|---|
-| `native/hiuh-native.py` | Python compiler (source of truth) |
-| `hiuh-tokenizer.hiuh` | Tokenizer written in HIUH |
-| `hiuh-parser.hiuh` | Parser written in HIUH (in progress) |
+| `compiler/hiuh-native.py` | Python compiler (source of truth) |
+| `compiler/hiuh.cfg` | Assembler/linker paths |
+| `src/hiuh-tokenizer.hiuh` | Tokenizer written in HIUH |
+| `src/hiuh-parser.hiuh` | Parser written in HIUH (in progress) |
+| `src/alloc-slot.hiuh` | Parser component: variable slot allocator |
+| `src/hitta-var.hiuh` | Parser component: variable lookup |
+| `src/skriv-reg.hiuh` | Parser component: register name emitter |
 | `DESIGN.md` | Language design decisions |
 | `TODO.md` | Implementation tasks |
 
