@@ -1,0 +1,27 @@
+. alloc-slot.hiuh — kopierar tok_name_buf till rätt vname-slot
+. Tar slot-index (0-5), kopierar tok_name_buf till vnameSlot, returnerar slot
+
+Funktion alloc_slot med slot
+    Om slot är 0
+        KopieraBuffer tok_name_buf till vname0
+        ge slot
+    Hejdå
+    Om slot är 1
+        KopieraBuffer tok_name_buf till vname1
+        ge slot
+    Hejdå
+    Om slot är 2
+        KopieraBuffer tok_name_buf till vname2
+        ge slot
+    Hejdå
+    Om slot är 3
+        KopieraBuffer tok_name_buf till vname3
+        ge slot
+    Hejdå
+    Om slot är 4
+        KopieraBuffer tok_name_buf till vname4
+        ge slot
+    Hejdå
+    KopieraBuffer tok_name_buf till vname5
+    ge slot
+Hejdå

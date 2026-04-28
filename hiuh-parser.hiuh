@@ -1,0 +1,120 @@
+. hiuh-parser.hiuh — läser tokenströmen, skriver x86-64 assembly till stdout
+. Pipeline: hiuh-tokenizer.exe < source.hiuh | hiuh-parser.exe > out.s
+
+Inkludera hitta-var.hiuh
+Inkludera alloc-slot.hiuh
+Inkludera skriv-reg.hiuh
+
+. --- Huvudprogram ---
+. Tillstånd: 0=start, 1=SET-varnamn, 2=väntar TILL, 3=SET-värde
+.            4=SKRIV_NL, 5=väntar AV, 6=SKRIV_NL-varnamn, 99=klart
+. done=1 hoppar över resterande Om-block i samma iteration
+Sätt state till 0
+Sätt reg_next till 0
+Sätt reg_idx till 0
+Sätt res till 0
+Sätt träff till 0
+Sätt done till 0
+
+. Skriv assembly-preamble
+SkrivNyRad .text
+SkrivNyRad .globl main
+SkrivNyRad main:
+SkrivNyRad push %r12
+SkrivNyRad push %r13
+SkrivNyRad push %rbp
+SkrivNyRad subq $32, %rsp
+SkrivNyRad mov $65001, %ecx
+SkrivNyRad call SetConsoleOutputCP
+
+Läs till las_ok
+Sålänge las_ok är 1
+    Sätt done till 0
+    Om done är 0
+        Om state är 0
+            Om done är 0
+                Sätt träff till Jämför input_buf med SET
+                Om träff är 1
+                    Sätt state till 1
+                    Sätt done till 1
+                Hejdå
+            Hejdå
+            Om done är 0
+                Sätt träff till Jämför input_buf med SKRIV_NL
+                Om träff är 1
+                    Sätt state till 4
+                    Sätt done till 1
+                Hejdå
+            Hejdå
+            Om done är 0
+                Sätt träff till Jämför input_buf med EXIT
+                Om träff är 1
+                    SkrivNyRad xor %ecx, %ecx
+                    SkrivNyRad call exit
+                    SkrivNyRad addq $32, %rsp
+                    SkrivNyRad pop %rbp
+                    SkrivNyRad pop %r13
+                    SkrivNyRad pop %r12
+                    SkrivNyRad ret
+                    SkrivNyRad .data
+                    SkrivNyRad fmt_int: .byte 37,108,108,100,10,0
+                    Sätt state till 99
+                    Sätt done till 1
+                Hejdå
+            Hejdå
+            Sätt done till 1
+        Hejdå
+    Hejdå
+    Om done är 0
+        Om state är 1
+            KopieraBuffer input_buf till tok_name_buf
+            Sätt res till Anropa hitta_var
+            Sätt reg_idx till res
+            Om res är 99
+                Sätt reg_idx till Anropa alloc_slot med reg_next
+                Sätt reg_next till reg_next pluss 1
+            Hejdå
+            Sätt state till 2
+            Sätt done till 1
+        Hejdå
+    Hejdå
+    Om done är 0
+        Om state är 2
+            Sätt state till 3
+            Sätt done till 1
+        Hejdå
+    Hejdå
+    Om done är 0
+        Om state är 3
+            Skriv mov $
+            Skriv text i input_buf
+            Anropa skriv_komma_reg med reg_idx
+            Sätt state till 0
+            Sätt done till 1
+        Hejdå
+    Hejdå
+    Om done är 0
+        Om state är 4
+            Sätt state till 5
+            Sätt done till 1
+        Hejdå
+    Hejdå
+    Om done är 0
+        Om state är 5
+            Sätt state till 6
+            Sätt done till 1
+        Hejdå
+    Hejdå
+    Om done är 0
+        Om state är 6
+            Sätt res till Anropa hitta_var
+            Sätt reg_idx till res
+            SkrivNyRad lea fmt_int(%rip), %rcx
+            Anropa skriv_reg_rdx med reg_idx
+            SkrivNyRad call printf
+            Sätt state till 0
+            Sätt done till 1
+        Hejdå
+    Hejdå
+    Läs till las_ok
+Hejdå

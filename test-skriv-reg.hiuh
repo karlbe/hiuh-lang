@@ -1,0 +1,20 @@
+. test-skriv-reg.hiuh — testar skriv_komma_reg och skriv_reg_rdx
+. Förväntad output för index 0..5:
+.   , %r12 / , %r13 / , %r8 / , %r9 / , %r10 / , %r11
+.   mov %r12, %rdx / ... / mov %r11, %rdx
+
+Inkludera skriv-reg.hiuh
+
+Sätt i till 0
+Sålänge i är mindre än 6
+    Anropa skriv_komma_reg med i
+    Sätt i till i pluss 1
+Hejdå
+
+Sätt i till 0
+Sålänge i är mindre än 6
+    Anropa skriv_reg_rdx med i
+    Sätt i till i pluss 1
+Hejdå
+
+JagMåsteGåNu 0

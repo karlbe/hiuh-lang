@@ -62,12 +62,16 @@ def tokenize(src):
                 params_str = rest[rest.lower().index('grej med ') + len('grej med '):]
                 params = [p.strip() for p in params_str.split(',')]
                 tokens.append(('GREJ_DEF', var, params))
-            elif rest.startswith('Anropa ') and ' med ' in rest:
+            elif rest.startswith('Anropa '):
                 # Real function call with result: Sätt x till Anropa foo med a, b
                 rest2 = rest[len('Anropa '):]
-                parts = rest2.split(' med ', 1)
-                func_name = parts[0].strip()
-                args = [a.strip() for a in parts[1].split(',')]
+                if ' med ' in rest2:
+                    parts = rest2.split(' med ', 1)
+                    func_name = parts[0].strip()
+                    args = [a.strip() for a in parts[1].split(',')]
+                else:
+                    func_name = rest2.strip()
+                    args = []
                 tokens.append(('ANROPA_RES', var, func_name, args))
             elif rest.startswith('Jämför ') and ' med ' in rest:
                 # Sätt x till Jämför buf med lit
@@ -1055,7 +1059,11 @@ def compile_to_asm(stmts, target='linux'):
         
         elif op == 'READ_RES':
             res_reg = alloc_var(stmt[1])
+            lbl_strip = new_label()
+            lbl_strip_null = new_label()
+            lbl_strip_done = new_label()
             if target == 'windows':
+                to_save, align_pad = win_call_save(exclude=res_reg)
                 code.append(f"    lea input_buf(%rip), %rax")
                 code.append(f"    movb $0, (%rax)  # pre-zero")
                 code.append(f"    mov $0, %ecx")
@@ -1067,6 +1075,7 @@ def compile_to_asm(stmts, target='linux'):
                 code.append(f"    test %rax, %rax")
                 code.append(f"    setne %al")
                 code.append(f"    movzx %al, %rax")
+                win_call_restore(to_save, align_pad)
                 code.append(f"    mov %rax, {res_reg}  # {stmt[1]} = 1 if ok, 0 if EOF")
             else:
                 code.append(f"    lea input_buf(%rip), %rax")
@@ -1080,6 +1089,21 @@ def compile_to_asm(stmts, target='linux'):
                 code.append(f"    setg %al")
                 code.append(f"    movzx %al, %rax")
                 code.append(f"    mov %rax, {res_reg}  # {stmt[1]} = 1 if ok, 0 if EOF")
+            # strip trailing \n / \r from input_buf
+            code.append(f"    lea input_buf(%rip), %rsi")
+            code.append(f"{lbl_strip}:")
+            code.append(f"    movb (%rsi), %al")
+            code.append(f"    testb %al, %al")
+            code.append(f"    jz {lbl_strip_done}")
+            code.append(f"    cmpb $10, %al")
+            code.append(f"    je {lbl_strip_null}")
+            code.append(f"    cmpb $13, %al")
+            code.append(f"    je {lbl_strip_null}")
+            code.append(f"    inc %rsi")
+            code.append(f"    jmp {lbl_strip}")
+            code.append(f"{lbl_strip_null}:")
+            code.append(f"    movb $0, (%rsi)")
+            code.append(f"{lbl_strip_done}:")
 
         elif op == 'WHILE':
             cmp_type, var1, var2, body = stmt[1], stmt[2], stmt[3], stmt[4]
@@ -1104,7 +1128,11 @@ def compile_to_asm(stmts, target='linux'):
             code.append(f"{loop_end}:")
 
         elif op == 'READ':
+            lbl_strip = new_label()
+            lbl_strip_null = new_label()
+            lbl_strip_done = new_label()
             if target == 'windows':
+                to_save, align_pad = win_call_save()
                 code.append(f"    lea input_buf(%rip), %rax")
                 code.append(f"    movb $0, (%rax)  # pre-zero: 0 on EOF after fgets")
                 code.append(f"    mov $0, %ecx")
@@ -1113,6 +1141,7 @@ def compile_to_asm(stmts, target='linux'):
                 code.append(f"    lea input_buf(%rip), %rcx")
                 code.append(f"    mov $256, %edx")
                 code.append(f"    call fgets")
+                win_call_restore(to_save, align_pad)
             else:
                 code.append(f"    lea input_buf(%rip), %rax")
                 code.append(f"    movb $0, (%rax)  # pre-zero: 0 on EOF after read")
@@ -1121,9 +1150,26 @@ def compile_to_asm(stmts, target='linux'):
                 code.append(f"    lea input_buf(%rip), %rsi")
                 code.append(f"    mov $256, %edx  # max bytes")
                 code.append(f"    syscall")
+            # strip trailing \n / \r from input_buf
+            code.append(f"    lea input_buf(%rip), %rsi")
+            code.append(f"{lbl_strip}:")
+            code.append(f"    movb (%rsi), %al")
+            code.append(f"    testb %al, %al")
+            code.append(f"    jz {lbl_strip_done}")
+            code.append(f"    cmpb $10, %al")
+            code.append(f"    je {lbl_strip_null}")
+            code.append(f"    cmpb $13, %al")
+            code.append(f"    je {lbl_strip_null}")
+            code.append(f"    inc %rsi")
+            code.append(f"    jmp {lbl_strip}")
+            code.append(f"{lbl_strip_null}:")
+            code.append(f"    movb $0, (%rsi)")
+            code.append(f"{lbl_strip_done}:")
         
         elif op == 'CMP_BUF_LIT':
             target_var, buf_name, literal = stmt[1], stmt[2], stmt[3]
+            if buf_name != 'input_buf':
+                named_buffers.add(buf_name)
             lit_strings.append(literal)
             lit_idx = len(lit_strings) - 1
             träff_reg = alloc_var(target_var)
@@ -1305,8 +1351,10 @@ def compile_to_asm(stmts, target='linux'):
                 code.append(f"    syscall")
 
         elif op == 'CHAR_AT':
-            idx, var = stmt[1], stmt[2]
-            # Get character at index from input_buf, store in r15 (not r12)
+            idx, src_buf = stmt[1], stmt[2]
+            buf = src_buf if src_buf else 'input_buf'
+            if buf != 'input_buf':
+                named_buffers.add(buf)
             if idx in var_reg:
                 code.append(f"    mov {var_reg[idx]}, %rcx  # index")
             else:
@@ -1314,12 +1362,11 @@ def compile_to_asm(stmts, target='linux'):
                     code.append(f"    mov ${int(idx)}, %rcx  # index")
                 except:
                     code.append(f"    mov $0, %rcx  # index fallback")
-            code.append(f"    lea input_buf(%rip), %rsi")
+            code.append(f"    lea {buf}(%rip), %rsi")
             code.append(f"    add %rcx, %rsi")
             code.append(f"    mov (%rsi), %r15b  # character at index")
-            # Track last char in a pseudo-variable
             var_reg['_tecken'] = '%r15'
-            var_reg['tecken'] = '%r15'  # also as "tecken" for compatibility
+            var_reg['tecken'] = '%r15'
         
         elif op == 'RETURN':
             ret_reg = resolve(stmt[1])
@@ -1403,23 +1450,49 @@ def compile_to_asm(stmts, target='linux'):
     
     return '\n'.join(out)
 
+def preprocess(src, base_dir, _seen=None):
+    if _seen is None:
+        _seen = set()
+    lines = src.splitlines()
+    out = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith('Inkludera '):
+            filename = stripped[len('Inkludera '):].strip()
+            path = os.path.join(base_dir, filename)
+            real = os.path.realpath(path)
+            if real in _seen:
+                raise RuntimeError(f"Inkludera: cirkulär inkludering av '{filename}'")
+            _seen.add(real)
+            inc_src = open(path, encoding='utf-8').read()
+            inc_dir = os.path.dirname(real)
+            out.append(preprocess(inc_src, inc_dir, _seen))
+            _seen.discard(real)
+        else:
+            out.append(line)
+    return '\n'.join(out)
+
 def main():
     show_ord_lista = '--ord-lista' in sys.argv
     show_asm = '--asm' in sys.argv
-    
+
     if len(sys.argv) < 2:
         print("Usage: python3 hiuh-native.py <input.hiuh> [output]")
         print("  --asm: Show assembly only")
         print("  --ord-lista: Show word list only")
         return
-    
+
     if sys.argv[1] == '-' or sys.argv[1] == '--stdin':
         src = sys.stdin.buffer.read().decode('utf-8')
+        base_dir = os.getcwd()
     elif sys.argv[1] == '--asm' or sys.argv[1] == '--ord-lista':
         src = open(sys.argv[2], encoding='utf-8').read()
+        base_dir = os.path.dirname(os.path.realpath(sys.argv[2]))
     else:
         src = open(sys.argv[1], encoding='utf-8').read()
-    
+        base_dir = os.path.dirname(os.path.realpath(sys.argv[1]))
+
+    src = preprocess(src, base_dir)
     result = tokenize(src)
     if isinstance(result, tuple):
         tokens, ord_lista = result

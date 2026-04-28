@@ -1,0 +1,24 @@
+. test-alloc-slot.hiuh — testar alloc_slot
+. Stdin: "alfa\nbeta\n"
+. Förväntad output: 0, 2, 1, 1
+.   (slot för alfa, slot för beta, vname0==alfa, vname2==beta)
+
+Inkludera alloc-slot.hiuh
+
+Läs
+KopieraBuffer input_buf till tok_name_buf
+Sätt r till Anropa alloc_slot med 0
+SkrivNyRad värdet av r
+
+Läs
+KopieraBuffer input_buf till tok_name_buf
+Sätt r till Anropa alloc_slot med 2
+SkrivNyRad värdet av r
+
+Sätt ok till Jämför vname0 med alfa
+SkrivNyRad värdet av ok
+
+Sätt ok till Jämför vname2 med beta
+SkrivNyRad värdet av ok
+
+JagMåsteGåNu 0

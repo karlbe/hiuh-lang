@@ -1,0 +1,53 @@
+. skriv-reg.hiuh — registernamnsfunktioner för assemblygenerering
+
+. Skriver , %rXX\n baserat på registerindex 0-5
+Funktion skriv_komma_reg med idx
+    Om idx är 0
+        SkrivNyRad , %r12
+        ge 0
+    Hejdå
+    Om idx är 1
+        SkrivNyRad , %r13
+        ge 0
+    Hejdå
+    Om idx är 2
+        SkrivNyRad , %r8
+        ge 0
+    Hejdå
+    Om idx är 3
+        SkrivNyRad , %r9
+        ge 0
+    Hejdå
+    Om idx är 4
+        SkrivNyRad , %r10
+        ge 0
+    Hejdå
+    SkrivNyRad , %r11
+    ge 0
+Hejdå
+
+. Skriver mov %rXX, %rdx\n baserat på registerindex 0-5
+Funktion skriv_reg_rdx med idx
+    Om idx är 0
+        SkrivNyRad mov %r12, %rdx
+        ge 0
+    Hejdå
+    Om idx är 1
+        SkrivNyRad mov %r13, %rdx
+        ge 0
+    Hejdå
+    Om idx är 2
+        SkrivNyRad mov %r8, %rdx
+        ge 0
+    Hejdå
+    Om idx är 3
+        SkrivNyRad mov %r9, %rdx
+        ge 0
+    Hejdå
+    Om idx är 4
+        SkrivNyRad mov %r10, %rdx
+        ge 0
+    Hejdå
+    SkrivNyRad mov %r11, %rdx
+    ge 0
+Hejdå

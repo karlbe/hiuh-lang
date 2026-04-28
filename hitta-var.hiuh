@@ -1,0 +1,38 @@
+. hitta-var.hiuh — symboltabellsuppslag
+. Slår upp input_buf i vname0..vname5
+. Returnerar 0-5 om hittad, 99 om ej hittad
+
+Funktion hitta_var
+    Sätt vi till 0
+    Sätt hm till JämförBuffer input_buf med vname0
+    Om hm är 1
+        ge vi
+    Hejdå
+    Sätt vi till 1
+    Sätt hm till JämförBuffer input_buf med vname1
+    Om hm är 1
+        ge vi
+    Hejdå
+    Sätt vi till 2
+    Sätt hm till JämförBuffer input_buf med vname2
+    Om hm är 1
+        ge vi
+    Hejdå
+    Sätt vi till 3
+    Sätt hm till JämförBuffer input_buf med vname3
+    Om hm är 1
+        ge vi
+    Hejdå
+    Sätt vi till 4
+    Sätt hm till JämförBuffer input_buf med vname4
+    Om hm är 1
+        ge vi
+    Hejdå
+    Sätt vi till 5
+    Sätt hm till JämförBuffer input_buf med vname5
+    Om hm är 1
+        ge vi
+    Hejdå
+    Sätt vi till 99
+    ge vi
+Hejdå

@@ -5,88 +5,77 @@
 
 ## Status
 
-### Python-kompilatorn (native/hiuh-native.py) - KLAR
-- [x] Tokenizer - fungerar i Python
-- [x] Parser - fungerar
-- [x] Kodgenerator - genererar x86_64 assembly
-- [x] Funktioner (lambda-style)
-- [x] IF-ELSE i loopar
-- [x] Nästlade loopar
+### Tokenizer (hiuh-tokenizer.hiuh) - KLAR
+- [x] Tokenizer fungerar korrekt
+- [x] Output: `SET\nx\nTILL\n5\n4` (token per rad + count)
+- [x] Multiline input stöds
+- [x] 27 nyckelord: SET, FOR, IF, ELSE, END, READ, SKRIV_NL, SKRIV, LAGRA, JAMFOR, JAMFOR_BUF, EXIT, BREAK, TILL, FRAN, AR, PLUS, UR, VID, MED, TECKEN, AN, MINDRE, STORRE, VARDET, AV, TEXT, I, GE
 
-### HIUH tokenizer (hiuh-tokenizer.hiuh) - DELVIS FIXAT
-- Status: DELVIS FUNGERANDE (v74, 74fa61e - sista fungerande version)
-- Kompileras med Python-native-hiuh → /tmp/tok (x86_64)
-- Test: `printf "foo bar" | /tmp/tok` → ger "foo\n001" (bara första ordet + count)
-- Bug: När space triggar word-end markering (klar=1), återställer nästa
-  teckens ">32"-branch `klar=0` INNAN ordet processas → ordet glöms
-- Kortlek: 153 HIUH-ord
-- Fungerar korrekt för 1-ord input, tappar 2+ ord
+### Native kompilator (native/hiuh-native.py) - KLAR
+- [x] Windows x64 assembly output
+- [x] KopieraBuffer (buffer copy)
+- [x] Sålänge (while loop)
+- [x] 7 register (%r12-%r11, %rbp)
+- [x] Verkliga funktionsanrop (call/ret)
+- [x] Rekursion stöds (test-rekursion.exe)
 
-## SJÄLVKOMPILERING - vägen dit
+### Parser i HIUH (hiuh-parser.hiuh) - NÄSTA STEG
+- [ ] Måste skrivas för att kunna kompilera sig själv
 
-### Nuvarande flöde för självkompilering
-1. hiuh-native.py (Python) tokenizerar hiuh-tokenizer.hiuh
-2. Ger ord_lista: 153 ord
-3. För att kompilera hiuh-tokenizer.hiuh med sig själv, behöver HIUH-ord-listan
-   producera samma tokenström som Python-tokenizern
+## Vägen till självkompilering
 
-### Nästa steg (prioriterad ordning)
-1. [ ] Fixa tokenizer-buggen (word-end detection med "klar"-flagga)
-2. [ ] Bygg HIUH-parser i HIUH (för att bygga uttryck)
-3. [ ] Bygg HIUH-kodgenerator i HIUH (för att generera asm)
-4. [ ] Självkompilerad hiuh.exe som kan kompilera hiuh-tokenizer.hiuh
+### Steg 1: hiuh-parser.hiuh (BLOCKERANDE)
+Läser tokenström från hiuh-tokenizer.exe, skriver x86_64 assembly till stdout.
 
-## Språkdesign — beslutade riktningar
+Pipeline: `hiuh-tokenizer.exe < source.hiuh | hiuh-parser.exe > out.s`
 
-### Typsystem (statisk typning, beslutad)
-- [ ] Lägg till `var_type` dict parallellt med `var_reg` i kompilatorn
-- [ ] Typer: `Heltal` (64-bit int), `Text` (sträng), `Sant/Falskt` (bool)
-- [ ] Typinferens från första tilldelning — ingen explicit deklaration krävs
-- [ ] Kompileringsfel vid typkonflikt (t.ex. tilldela Text till Heltal)
-- [ ] Funktionssignaturer med returtyp: `ge Heltal` / `ge Text`
-- Beslut: statisk typning, inferred från tilldelning, ingen pekare exponerad
+Kräver:
+- Läs token från stdin (en token per rad, t.ex. "SET", "x", "TILL", "5")
+- State machine för SET, FOR, IF, ELSE, END, SKRIV_NL, EXIT
+- Symboltabell (6 variabler: vname0..vname5 → %r12-%r11)
+- Labelhantering för loopar och if-blocks
+- Assembler-output till stdout
 
-### Funktionsanrop (verkliga call/ret, se parser.plan.md §4)
-- [ ] Riktig prologue/epilogue per funktion
-- [ ] Windows x64 ABI: argument i rcx/rdx/r8/r9, returvärde i rax
-- [ ] `Anropa` / `Sätt x till Anropa` syntax
-- [ ] Per-funktion variabelallokering (nollställ var_reg vid FUNC_DEF)
+### Steg 2: Bygg ut parser
+- Läs-tokens: READ, CHAR_AT (tecken X ur källa)
+- Aritmetik: PLUS, MINUS, GÅNGER, DELAT
+- Jämförelser: AR, MINDRE, STORRE, LIKA, OLIKA
+- Nästlade loopar och if-satser
+- KopieraBuffer (används flitigt för att spara tokens)
 
-### Minnesmodell (beslutad — se DESIGN.md)
-- Värdesemantik: tilldelning kopierar alltid, inga delade buffertar
-- Text är 256 byte internt, kompilator-genererat namn (_text_0 etc)
-- Overflow → runtime abort med tydligt felmeddelande, aldrig tyst trunkering
+### Steg 3: Självkompilering
+1. hiuh-native.py kompilerar hiuh-parser.hiuh → hiuh-parser.exe
+2. hiuh-parser.exe kompilerar hiuh-tokenizer.hiuh → tokenizer.exe (samma som Python-versionen)
+3.Verifiera: båda tokenizerarna ger samma output
 
-#### Implementera typsystem
-- [ ] Lägg till `var_type` dict i `compile_to_asm` (parallellt med `var_reg`)
-- [ ] Vid `SET`: härled typ från värdet (heltal-literal → Heltal, buf → Text)
-- [ ] Vid `SET`: kontrollera att ny typ matchar befintlig, annars kompileringsfel
-- [ ] `READ_RES` → typ Heltal (returvärde 0/1)
-- [ ] `Läs` utan till → tilldelar till implicit Text-variabel `_las_buf`
+## Tokenizer output-format
 
-#### Implementera Text-typ
-- [ ] `alloc_text(var)` — genererar `_text_N`-buffert, registrerar i `text_bufs`
-- [ ] Tilldelning Text→Text kompileras till `KopieraBuffer`
-- [ ] Tilldelning strängliteral→Text kompileras till inline byte-copy
-- [ ] `SkrivNyRad`/`Skriv` på Text-variabel → använder rätt buffert automatiskt
-- [ ] `Jämför`/`JämförBuffer` på Text-variabler → slår upp buffertnamn automatiskt
-
-#### Implementera overflow-skydd
-- [ ] Efter varje `KopieraBuffer` / strängtilldelning: kontrollera att källan ≤ 256 byte
-- [ ] Runtime-check: lägg till längdkoll i genererad assembly
-- [ ] Felmeddelande: `FEL: Text overflow i variabel 'X'` + exit 1
-
-## Kända buggar
-- Tokenizer tappar ord 2+ när space markerar word-end men nästa char återställer klar-flaggan
-
-## Test-kommandon
-```bash
-# Bygga tokenizer
-python3 native/hiuh-native.py --asm hiuh-tokenizer.hiuh > /tmp/tok.asm && as -o /tmp/tok.o /tmp/tok.asm && ld -o /tmp/tok /tmp/tok.o
-
-# Testa tokenizer
-printf "foo bar" | /tmp/tok
-
-# Testa ord_lista för självkompilering
-python3 native/hiuh-native.py --ord-lista hiuh-tokenizer.hiuh 2>/dev/null | wc -w
 ```
+SET              # keyword
+x                # variable name
+TILL             # keyword
+5                # value
+4                # total token count
+```
+
+## Assembler-output format (preliminärt)
+
+```asm
+.text
+.globl main
+main:
+    push %rbp
+    mov %rsp, %rbp
+    # ... program code ...
+
+# Data section
+.data
+fmt_int: .asciz "%lld\n"
+```
+
+Per statement:
+- SET x TILL 5    →  mov $5, %r12  (allocate x if needed)
+- FOR i 0 10      →  mov $0, %r10 / .L0: / cmp $10, %r10 / jge .L1 / ... / inc %r10 / jmp .L0 / .L1:
+- IF x AR 0       →  cmp $0, %r12 / je .L2
+- SKRIV x         →  lea fmt_int(%rip), %rcx / mov %r12, %rdx / call printf
+- EXIT 0          →  xor %ecx, %ecx / call exit

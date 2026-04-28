@@ -1,7 +1,7 @@
 # HIUH Språkdesign
 
 Officiellt designdokument. Beslut här är fattade — implementationsdetaljer
-diskuteras i TODO.md och parser.plan.md.
+diskuteras i TODO.md.
 
 ---
 
