@@ -1,0 +1,7 @@
+Sätt n till 65
+Lagra n vid 0 i input_buf
+Lagra 0 vid 1 i input_buf
+SkrivNyRad text i input_buf
+Lagra 66 vid 0 i input_buf
+SkrivNyRad text i input_buf
+JagMåsteGåNu 0

@@ -1,0 +1,20 @@
+. Test compound Om with och
+Sätt done till 0
+Sätt state till 4
+
+Om done är 0 och state är 4
+    SkrivNyRad träff
+    Sätt done till 1
+Hejdå
+
+. Should not fire — done is now 1
+Om done är 1 och state är 0
+    SkrivNyRad fel
+Hejdå
+
+. Should not fire — second condition fails
+Om done är 1 och state är 99
+    SkrivNyRad fel2
+Hejdå
+
+SkrivNyRad klar

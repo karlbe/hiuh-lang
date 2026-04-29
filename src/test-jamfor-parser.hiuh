@@ -1,0 +1,14 @@
+Läs
+Sätt träff till Jämför input_buf med hej
+Om träff är 1
+    SkrivNyRad värdet av träff
+Hejdå
+Om träff är 0
+    SkrivNyRad värdet av träff
+Hejdå
+Läs
+Sätt träff till Jämför input_buf med hej
+Om träff är 1
+    SkrivNyRad värdet av träff
+Hejdå
+JagMåsteGåNu 0

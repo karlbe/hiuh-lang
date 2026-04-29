@@ -1,16 +1,266 @@
+. hiuh-tokenizer.hiuh — tokenizes HIUH source, one token per line
+. Pipeline: hiuh-tokenizer.exe < source.hiuh | hiuh-parser.exe > out.s
+
+. Keyword dispatch — uses early ge to avoid cascade, handles identifier fallback
+. Takes antal (token count so far), returns antal+1
+Funktion emit_word med antal
+    Sätt träff till Jämför ord_buf med Sätt
+    Om träff är 1
+        SkrivNyRad SET
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med För
+    Om träff är 1
+        SkrivNyRad FOR
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med Om
+    Om träff är 1
+        SkrivNyRad IF
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med Hejdå
+    Om träff är 1
+        SkrivNyRad END
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med Annars
+    Om träff är 1
+        SkrivNyRad ELSE
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med Läs
+    Om träff är 1
+        SkrivNyRad READ
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med SkrivNyRad
+    Om träff är 1
+        SkrivNyRad SKRIV_NL
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med Skriv
+    Om träff är 1
+        SkrivNyRad SKRIV
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med Lagra
+    Om träff är 1
+        SkrivNyRad LAGRA
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med Jämför
+    Om träff är 1
+        SkrivNyRad JAMFOR
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med JämförBuffer
+    Om träff är 1
+        SkrivNyRad JAMFOR_BUF
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med JagMåsteGåNu
+    Om träff är 1
+        SkrivNyRad EXIT
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med Bryt
+    Om träff är 1
+        SkrivNyRad BREAK
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med Sålänge
+    Om träff är 1
+        SkrivNyRad SALANGES
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med Funktion
+    Om träff är 1
+        SkrivNyRad FUNKTION
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med Anropa
+    Om träff är 1
+        SkrivNyRad ANROPA
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med KopieraBuffer
+    Om träff är 1
+        SkrivNyRad KOPIERA_BUF
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med Inkludera
+    Om träff är 1
+        SkrivNyRad INKLUDERA
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med Öka
+    Om träff är 1
+        SkrivNyRad OKA
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med Minska
+    Om träff är 1
+        SkrivNyRad MINSKA
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med till
+    Om träff är 1
+        SkrivNyRad TILL
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med från
+    Om träff är 1
+        SkrivNyRad FRAN
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med inte
+    Om träff är 1
+        SkrivNyRad INTE
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med är
+    Om träff är 1
+        SkrivNyRad AR
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med texten
+    Om träff är 1
+        SkrivNyRad TEXTEN
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med tom
+    Om träff är 1
+        SkrivNyRad TOM
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med pluss
+    Om träff är 1
+        SkrivNyRad PLUS
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med minus
+    Om träff är 1
+        SkrivNyRad MINUS
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med ur
+    Om träff är 1
+        SkrivNyRad UR
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med vid
+    Om träff är 1
+        SkrivNyRad VID
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med med
+    Om träff är 1
+        SkrivNyRad MED
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med tecken
+    Om träff är 1
+        SkrivNyRad TECKEN
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med än
+    Om träff är 1
+        SkrivNyRad AN
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med mindre
+    Om träff är 1
+        SkrivNyRad MINDRE
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med större
+    Om träff är 1
+        SkrivNyRad STORRE
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med värdet
+    Om träff är 1
+        SkrivNyRad VARDET
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med av
+    Om träff är 1
+        SkrivNyRad AV
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med text
+    Om träff är 1
+        SkrivNyRad TEXT
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med i
+    Om träff är 1
+        SkrivNyRad I
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med ge
+    Om träff är 1
+        SkrivNyRad GE
+        Öka antal
+        ge antal
+    Hejdå
+    . Not a keyword — emit as identifier
+    SkrivNyRad text i ord_buf
+    Öka antal
+    ge antal
+Hejdå
+
+. --- Huvudprogram ---
+. Variabler (7 max): antal, j, i_ord, klar, rad, i (for), tecken (for)
 Sätt antal till 0
 Sätt j till 0
 Sätt i_ord till 0
 Sätt klar till 0
-För _ från 0 till 9999
-    Läs
-    Sätt tecken till tecken 0 ur källa
-    Om tecken är 0
-        SkrivNyRad värdet av antal
-        JagMåsteGåNu 0
-    Hejdå
+
+Läs till rad
+Sålänge rad inte är tom
     För i från 0 till 255
-        Sätt tecken till tecken i ur källa
+        Sätt tecken till tecken i ur input_buf
         Om tecken är 0
             Bryt
         Hejdå
@@ -20,165 +270,24 @@ För _ från 0 till 9999
         Hejdå
         Om tecken är större än 32
             Lagra tecken vid j i ord_buf
-            Sätt j till j pluss 1
+            Öka j
             Sätt i_ord till 1
             Sätt klar till 0
         Hejdå
         Om klar är 1
             Lagra i_ord vid j i ord_buf
-            Sätt träff till Jämför ord_buf med Sätt
-            Om träff är 1
-                SkrivNyRad SET
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med För
-            Om träff är 1
-                SkrivNyRad FOR
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med Om
-            Om träff är 1
-                SkrivNyRad IF
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med Hejdå
-            Om träff är 1
-                SkrivNyRad END
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med Annars
-            Om träff är 1
-                SkrivNyRad ELSE
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med Läs
-            Om träff är 1
-                SkrivNyRad READ
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med SkrivNyRad
-            Om träff är 1
-                SkrivNyRad SKRIV_NL
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med Skriv
-            Om träff är 1
-                SkrivNyRad SKRIV
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med Lagra
-            Om träff är 1
-                SkrivNyRad LAGRA
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med Jämför
-            Om träff är 1
-                SkrivNyRad JAMFOR
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med JämförBuffer
-            Om träff är 1
-                SkrivNyRad JAMFOR_BUF
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med JagMåsteGåNu
-            Om träff är 1
-                SkrivNyRad EXIT
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med Bryt
-            Om träff är 1
-                SkrivNyRad BREAK
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med till
-            Om träff är 1
-                SkrivNyRad TILL
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med från
-            Om träff är 1
-                SkrivNyRad FRAN
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med är
-            Om träff är 1
-                SkrivNyRad AR
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med pluss
-            Om träff är 1
-                SkrivNyRad PLUS
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med ur
-            Om träff är 1
-                SkrivNyRad UR
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med vid
-            Om träff är 1
-                SkrivNyRad VID
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med med
-            Om träff är 1
-                SkrivNyRad MED
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med tecken
-            Om träff är 1
-                SkrivNyRad TECKEN
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med än
-            Om träff är 1
-                SkrivNyRad AN
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med mindre
-            Om träff är 1
-                SkrivNyRad MINDRE
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med större
-            Om träff är 1
-                SkrivNyRad STORRE
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med värdet
-            Om träff är 1
-                SkrivNyRad VARDET
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med av
-            Om träff är 1
-                SkrivNyRad AV
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med text
-            Om träff är 1
-                SkrivNyRad TEXT
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med i
-            Om träff är 1
-                SkrivNyRad I
-                Sätt klar till 2
-            Hejdå
-            Sätt träff till Jämför ord_buf med ge
-            Om träff är 1
-                SkrivNyRad GE
-                Sätt klar till 2
-            Hejdå
-            Om klar är 1
-                SkrivNyRad text i ord_buf
-                Sätt klar till 2
-            Hejdå
-            Sätt antal till antal pluss 1
+            Sätt antal till Anropa emit_word med antal
             Sätt j till 0
             Sätt klar till 0
         Hejdå
     Hejdå
+    . Flush any word at end of line (no trailing whitespace before null byte)
+    Om i_ord är 1
+        Sätt i_ord till 0
+        Lagra i_ord vid j i ord_buf
+        Sätt antal till Anropa emit_word med antal
+        Sätt j till 0
+    Hejdå
+    Läs till rad
 Hejdå
 SkrivNyRad värdet av antal

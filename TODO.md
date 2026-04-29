@@ -11,7 +11,7 @@ Pipeline: `hiuh-tokenizer.exe < source.hiuh | hiuh-parser.exe > out.s`
 ### Tokenizer (src/hiuh-tokenizer.hiuh) — KLAR
 Läser tecken från stdin, skriver ett token per rad till stdout.
 Tokens: SET FOR IF ELSE END READ SKRIV_NL SKRIV LAGRA JAMFOR JAMFOR_BUF
-        EXIT BREAK TILL FRAN AR PLUS UR VID MED TECKEN AN MINDRE STORRE
+        EXIT BREAK TILL FRAN AR PLUS MINUS UR VID MED TECKEN AN MINDRE STORRE
         VARDET AV TEXT I GE  + identifierare/literaler
 
 ### Kompilator (compiler/hiuh-native.py) — KLAR
@@ -23,45 +23,59 @@ Tokens: SET FOR IF ELSE END READ SKRIV_NL SKRIV LAGRA JAMFOR JAMFOR_BUF
 - [x] Verkliga funktionsanrop med call/ret, rekursion
 
 ### Parser (src/hiuh-parser.hiuh) — PÅGÅR
-Hanterar just nu: SET, SKRIV_NL (värdet av), EXIT
-Allt nedan behöver läggas till.
+Hanterar just nu: SET (literal, VARDET AV, PLUS, MINUS, JAMFOR), SKRIV_NL (VARDET AV, TEXT I),
+OKA, MINSKA, IF/END, SALANGES/END, BREAK, MINDRE AN, STORRE AN, READ, EXIT
+Testat och verifierat med test.py (19/19 gröna).
 
 ---
 
 ## Språkfunktioner att lägga till i kompilatorn INNAN självkompilering
 
-### 1. minus — subtraction (BLOCKERANDE)
-`Sätt x till a minus b`
-Behövs för: minska labelräknare, beräkna offsets.
+### ~~1. minus — subtraction~~ — KLAR
+`Sätt x till a minus b` — implementerad i hiuh-native.py.
 
-### 2. Fixa `Om x är texten Y` (BLOCKERANDE för ren arkitektur)
-Just nu tar `Om`-tokenizern bara sista ordet som var2 — `Om tok är texten SET`
-jämför mot `SET` istället för `texten SET`.
+### ~~2. Fixa `Om x är texten Y`~~ — KLAR
+`Om tok är texten SET` och `Sålänge tok är texten X` fungerar nu korrekt.
+Token-dispatch med early-`ge` per tokentyp är nu möjlig utan `done`-flagga.
 
-Fixa: i Om-grenen, om orden efter `är` börjar med `texten`, ta hela frasen.
+### ~~3. Sålänge med texten~~ — KLAR (fixat samtidigt som #2)
 
-**Varför kritiskt:** Med denna fix kan hela token-dispatch skrivas som
-en funktion med early-ge per tokentyp — ingen `done`-flagga behövs:
+### ~~4. SkrivHeltal / inline integer printing~~ — KLAR via `och`
+`SkrivNyRad jne L och label_nr` skriver `jne L42\n` på en rad.
+`SkrivNyRad L och label_nr och :` skriver `L42:\n`.
+Implementerat: ` och ` i Skriv/SkrivNyRad delar upp i delar — variabler skrivs
+som värde, övriga delar som literaler. Avblockerar labelgenerering i Fas 2.
 
+### ~~4b. `Om A och B` — sammansatta villkor~~ — KLAR
+`Om done är 0 och state är 4` kompilerar till chained CMP + jz. Sparar ett
+nästlingsdjup och en `Hejdå` per block.
+
+### ~~5. `Öka x` / `Minska x` — räknarshorthand~~ — KLAR
+`Öka label_nr` kompileras till `label_nr = label_nr + 1`. Fungerar överallt.
+
+### ~~6. `Skriv ... och text i buf och ...`~~ — KLAR
+`SkrivNyRad prefix och text i input_buf och suffix` fungerar.
+Parsern kan nu emittera `mov $<värde>, %r12` på en rad:
+`SkrivNyRad     mov $ och text i input_buf och , %r12`
+
+### ~~7. `Läs till x` ger Text, `inte är` för negation~~ — KLAR
+`Läs till rad` gör `rad` till en Text-variabel med radens innehåll.
+EOF sätter `rad` till tom sträng. Loop-mönster:
 ```
-Funktion hantera med tok är Text
-    Om tok är texten SET
-        . hantera SET
-        ge 0
-    Hejdå
-    Om tok är texten IF
-        . hantera IF
-        ge 0
-    Hejdå
-    ge 0
+Läs till rad
+Sålänge rad inte är texten
+    SkrivNyRad värdet av rad
+    Läs till rad
 Hejdå
 ```
+`inte är` fungerar i både `Om` och `Sålänge`, för text och heltal.
+`input_buf` och integer-flaggan behövs inte längre.
 
-Det minskar parserns storlek drastiskt.
-
-### 3. Sålänge med texten (trevligt att ha)
-`Sålänge tok är texten VARDET`
-Samma fix som Om ovan, i Sålänge-grenen.
+### 8. Parser-omskrivning med funktionsdispatch (nu avblockerad)
+Nu när `Om tok är texten X` fungerar kan hela state-maskinen i hiuh-parser.hiuh
+ersättas med en dispatchfunktion med early-`ge` per tokentyp.
+SET-hanteraren kan kalla `Läs` tre gånger internt — ingen state 1/2/3 behövs.
+Gör parsern ~50% kortare och läsbar.
 
 ---
 
@@ -72,34 +86,36 @@ Använd funktions-dispatch med early-ge (se ovan) istället för
 done-flagga state machine.
 
 ### Fas 1 — Grundläggande uttryck
-- [ ] PLUS a b → `mov a, %rcx / add b, %rcx / mov %rcx, %rNN`
-- [ ] SKRIV_NL literal → `call puts` (nuvarande text i input_buf)
-- [ ] SKRIV literal / SKRIV VARDET → printf utan newline
-- [ ] READ → fgets + newline-strip till input_buf
+- [x] PLUS / MINUS → `mov src, dst / add src2, dst` eller `sub`
+- [x] SET VARDET AV → variabelkopiering `mov %rSRC, %rDST`
+- [x] OKA / MINSKA → `inc %rXX` / `dec %rXX`
+- [x] READ → fgets + newline-strip till input_buf
 
-### Fas 2 — Kontrollflöde (kräver labelgenerering)
-Labelgenerering: `Skriv L` + `Skriv värdet av label_nr` — fungerar redan
-med befintliga Skriv + Heltal-utskrift.
+### Fas 2 — Kontrollflöde
+Labelgenerering via `label_buf[0]` byte-räknare + `SkrivNyRad jne L och label_nr`.
 
-- [ ] IF var AR val → `cmp / je L{n}` + spara n i variabel
-- [ ] END (för IF) → emit `L{n}:` från sparad variabel
-- [ ] WHILE var AR val → `L{n}: / cmp / jne L{n+1}` + spara båda
-- [ ] END (för WHILE) → `jmp L{n} / L{n+1}:`
-- [ ] SMALLER/LARGER (MINDRE/STORRE AN) → setl/setg varianter
-- [ ] ELSE → jmp förbi else-block + emit if-end label
+- [x] IF var AR val → `cmp $N, %rXX / jne L{n}` (literal och variabel)
+- [x] END (för IF) → emit `L{n}:`
+- [x] SALANGES var AR val → `L{n}: cmp / jne L{n+1}` + spara båda
+- [x] END (för SALANGES) → `jmp L{n} / L{n+1}:`
+- [x] BREAK → `jmp L{loop_end}`
+- [x] MINDRE AN / STORRE AN → `jge` / `jle` varianter av IF och SALANGES
 
-Nästlingsdjup: hantera 2 nivåer med label0/label1 + depth-räknare.
-FOR (För) kan skippas i fas 1 — tokenizern och parsern undviker det.
+OBS: IF/SALANGES stödjer EJ nästling — single-level only.
+Nästling kräver label-stack i buffer (implementeras vid behov).
 
 ### Fas 3 — Stränghantering
-- [ ] JAMFOR buf med lit → strcmp → result i variabel
-- [ ] LAGRA char vid idx i buf → store byte
-- [ ] JAMFOR_BUF buf1 med buf2
+- [x] JAMFOR buf MED lit → strcmp → result i variabel (1=match, 0=no match)
+- [x] SKRIV_NL TEXT I buf → puts(input_buf)
+- [ ] LAGRA char VID idx I buf → store byte (`movb $N, offset(%rip)`)
+- [ ] TECKEN idx UR buf → load byte (`movzbq offset(%rip), %rDST`)
+- [ ] JAMFOR_BUF buf1 MED buf2 → strcmp två buffertar
+- [ ] KopieraBuffer buf1 TILL buf2 → strcpy
 
 ### Fas 4 — Funktioner
-- [ ] FUNC_DEF name params → function prologue + param-register
+- [ ] FUNC_DEF name params → function prologue + param-register-mapping
 - [ ] GE val → return + epilogue
-- [ ] ANROPA func args → call med argument
+- [ ] ANROPA func args → call med argument-setup
 
 ---
 

@@ -33,6 +33,13 @@ Then run the pipeline:
 hiuh-tokenizer.exe < source.hiuh | hiuh-parser.exe > out.s
 ```
 
+**IMPORTANT: Always use PowerShell (not Bash) to run .exe files.** The Bash tool uses MSYS2 bash which cannot find .exe files in the current directory. Use the PowerShell tool instead for any command that runs a .exe binary.
+
+**IMPORTANT: PowerShell does not support `<` for stdin redirection.** Use `cmd /c` for pipelines with stdin redirection:
+```
+cmd /c "hiuh-tokenizer.exe < source.hiuh | hiuh-parser.exe > out.s"
+```
+
 Assemble and link:
 ```
 G:\msys64\mingw64\bin\as.exe -o out.o out.s
@@ -152,3 +159,79 @@ Hejdå
 
 The outer `Om done är 0` ensures only one state block fires per loop iteration.
 Reset `done` to 0 at the top of every iteration.
+
+### Python compiler: `Sätt x till Jämför buf med pluss/minus` is mis-parsed
+
+In `hiuh-native.py`, the `'pluss' in rest` and `'minus' in rest` checks for arithmetic
+must come **after** the `Jämför` check. If they come first, a line like:
+```
+Sätt träff till Jämför ord_buf med pluss
+```
+is mis-parsed as arithmetic (rest contains "pluss"), so the comparison is silently dropped.
+
+**Fixed order in the compiler:**
+1. `Anropa` (function call with result)
+2. `Jämför` / `JämförBuffer` (buffer comparison)
+3. `minus` in rest (arithmetic subtraction)
+4. `pluss` in rest (arithmetic addition)
+
+### Python compiler: `Skriv` strips trailing spaces
+
+`Skriv     mov` with a trailing space must produce `"mov "` (with space), but the old
+parser used `' '.join(words[1:])` which collapsed all whitespace and stripped trailing
+spaces. Fixed to extract raw content after the keyword using `.lstrip()` only.
+
+This matters when `Skriv` is used to emit an assembly opcode that must be followed
+immediately (no newline) by a register name from a helper function — the space between
+opcode and operand must come from the `Skriv` string itself.
+
+### Generated code: Windows API calls clobber %r8–%r11 in the output program
+
+The generated assembly (output of the parser) uses `%r8`–`%r11` for variables in slots
+2–5. Any Windows API call in the generated program — including `printf` — clobbers those
+registers. Variables stored there are lost across such calls.
+
+**Fix:** wrap printf calls in the generated code with push/pop of all four registers:
+```asm
+push %r8
+push %r9
+push %r10
+push %r11
+subq $32, %rsp        # shadow space for printf
+lea fmt_int(%rip), %rcx
+mov %rXX, %rdx
+call printf
+addq $32, %rsp
+pop %r11
+pop %r10
+pop %r9
+pop %r8
+```
+The SKRIV_NL handler in `hiuh-parser.hiuh` now emits this wrapper unconditionally.
+Stack alignment is maintained: 4 pushes (32 bytes) + shadow (32 bytes) = 64 bytes, a
+multiple of 16.
+
+### `SkrivNyRad` with `och`: each part is `.strip()`ped — trailing spaces in literals are lost
+
+`SkrivNyRad lea  och text i input_buf och (%rip), %rsi` splits on ` och ` giving parts
+`["lea", "text i input_buf", "(%rip), %rsi"]` — the trailing space on `"lea "` is stripped,
+producing `leainput_buf(%rip), %rsi` (missing space).
+
+**Fix:** Break it into separate `Skriv` calls where the space is a trailing literal:
+```
+Skriv lea 
+Skriv text i input_buf
+SkrivNyRad (%rip), %rsi
+```
+`Skriv lea ` preserves the trailing space (emitted via printf "%s" without stripping).
+Only use `och` when no part needs a trailing space — e.g. `jne L och label_nr` is fine.
+
+### Diagnosing parser output bugs: check the token stream first
+
+When the parser produces wrong assembly, run:
+```
+hiuh-tokenizer.exe < source.hiuh
+```
+before the full pipeline. Wrong tokens (e.g. `pluss` instead of `PLUS`) point to a
+tokenizer or compiler bug, not a parser logic bug. The token stream is the boundary
+between the two halves.

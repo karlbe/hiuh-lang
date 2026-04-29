@@ -22,6 +22,26 @@ def load_config():
 
 CONFIG = load_config()
 
+def parse_condition(cond_words):
+    """Parse a single condition like ['x', 'är', '0'] → ('EQ', 'x', '0')."""
+    if 'mindre' in cond_words and 'än' in cond_words:
+        return ('LT', cond_words[0], cond_words[cond_words.index('än') + 1])
+    elif 'större' in cond_words and 'än' in cond_words:
+        return ('GT', cond_words[0], cond_words[cond_words.index('än') + 1])
+    elif 'är' in cond_words:
+        är_i = cond_words.index('är')
+        negated = är_i > 0 and cond_words[är_i - 1] == 'inte'
+        after = cond_words[är_i + 1:]
+        if after and after[0] == 'tom':
+            var2 = 'texten '
+        elif after and after[0] == 'texten':
+            var2 = ' '.join(after) if len(after) > 1 else 'texten '
+        else:
+            var2 = after[0] if after else '0'
+        return ('NE' if negated else 'EQ', cond_words[0], var2)
+    return ('EQ', cond_words[0] if cond_words else '0', '0')
+
+
 def tokenize(src):
     tokens = []
     ord_lista = []  # Word list for self-compilation
@@ -38,12 +58,17 @@ def tokenize(src):
             ord_lista.extend(words)
         
         if first in ('Skriv', 'SkrivNyRad'):
-            rest = ' '.join(words[1:])
+            # Preserve trailing spaces: extract raw content after keyword
+            raw = line.rstrip('\n\r')
+            rest = raw[raw.index(first) + len(first):].lstrip()
             nl = first == 'SkrivNyRad'
             if rest.startswith('värdet av '):
                 tokens.append(('SKRIV_VAR_NL' if nl else 'SKRIV_VAR', words[-1]))
             elif rest.startswith('text i '):
                 tokens.append(('SKRIV_BUF_NL' if nl else 'SKRIV_BUF', rest[len('text i '):]))
+            elif ' och ' in rest:
+                parts = [p.strip() for p in rest.split(' och ')]
+                tokens.append(('SKRIV_PARTS', nl, parts))
             else:
                 tokens.append(('SKRIV_NL' if nl else 'SKRIV', rest))
         elif first == '.':
@@ -56,11 +81,6 @@ def tokenize(src):
                 tokens.append(('READ_TO_VAR', var))
             elif rest.startswith('texten '):
                 tokens.append(('SET_TEXT_LIT', var, rest[len('texten '):]))
-            elif 'pluss' in rest:
-                parts = rest.split('pluss')
-                left = parts[0].strip()
-                right = parts[1].strip() if len(parts) > 1 else '0'
-                tokens.append(('PLUS', var, left, right))
             elif rest.lower().startswith('grej med '):
                 # Inline lambda: Sätt foo till Grej med x, y
                 params_str = rest[rest.lower().index('grej med ') + len('grej med '):]
@@ -93,6 +113,16 @@ def tokenize(src):
                 buf2 = rw[med_i + 1] if med_i + 1 < len(rw) else ''
                 if buf1 and buf2:
                     tokens.append(('CMP_BUF_BUF', var, buf1, buf2))
+            elif 'minus' in rest:
+                parts = rest.split('minus')
+                left = parts[0].strip()
+                right = parts[1].strip() if len(parts) > 1 else '0'
+                tokens.append(('MINUS', var, left, right))
+            elif 'pluss' in rest:
+                parts = rest.split('pluss')
+                left = parts[0].strip()
+                right = parts[1].strip() if len(parts) > 1 else '0'
+                tokens.append(('PLUS', var, left, right))
             elif ' med ' in rest and not rest.lower().startswith('grej ') and not rest.startswith('Anropa '):
                 # Inline function call: Sätt a till min med 2, 3
                 parts = rest.split(' med ', 1)
@@ -108,7 +138,7 @@ def tokenize(src):
                     tokens.append(('SET_CHAR_AT', var, idx_part, source))
                 else:
                     tokens.append(('SET', var, rest))
-            elif ' är ' in rest and ' pluss ' not in rest and ' med ' not in rest:
+            elif ' är ' in rest and ' pluss ' not in rest and ' minus ' not in rest and ' med ' not in rest:
                 parts = rest.split(' är ', 1)
                 if len(parts) == 2:
                     left = parts[0].strip()
@@ -153,7 +183,7 @@ def tokenize(src):
             if 'till' in words:
                 till_i = words.index('till')
                 var = words[till_i + 1] if till_i + 1 < len(words) else '_las_ok'
-                tokens.append(('READ_RES', var))
+                tokens.append(('READ_TO_VAR', var))
             else:
                 tokens.append(('READ',))
         
@@ -245,8 +275,15 @@ def tokenize(src):
                     cmp_type = 'GT'
                     var2 = rest[rest.index('än') + 1]
                 else:
-                    cmp_type = 'EQ'
-                    var2 = rest[är_i + 1] if är_i + 1 < len(rest) else '0'
+                    negated = är_i > 0 and rest[är_i - 1] == 'inte'
+                    after_är = rest[är_i + 1:]
+                    if after_är and after_är[0] == 'tom':
+                        var2 = 'texten '
+                    elif after_är and after_är[0] == 'texten':
+                        var2 = ' '.join(after_är) if len(after_är) > 1 else 'texten '
+                    else:
+                        var2 = after_är[0] if after_är else '0'
+                    cmp_type = 'NE' if negated else 'EQ'
                 tokens.append(('WHILE', cmp_type, var1, var2))
 
         elif first == 'KopieraBuffer':
@@ -258,27 +295,43 @@ def tokenize(src):
                 if src and dest:
                     tokens.append(('COPY_BUF', dest, src))
 
+        elif first == 'Öka' and len(words) >= 2:
+            var = words[1]
+            tokens.append(('PLUS', var, var, '1'))
+
+        elif first == 'Minska' and len(words) >= 2:
+            var = words[1]
+            tokens.append(('MINUS', var, var, '1'))
+
         elif first == 'Om':
-            # "Om x är mindre än y" → store comparison type with IF
-            rest = words[1:]
-            cmp_type = 'EQ'
-            if 'mindre' in words and 'än' in words:
-                cmp_type = 'LT'
-            elif 'större' in words and 'än' in words:
-                cmp_type = 'GT'
-            elif 'är' in words:
-                cmp_type = 'EQ'
-            if len(rest) >= 2:
-                var1 = rest[0]
-                # For "är mindre än" / "är större än", var2 is the word after 'än'
-                if 'än' in words:
-                    än_idx = words.index('än')
-                    var2 = words[än_idx + 1] if än_idx + 1 < len(words) else rest[-1]
-                else:
-                    var2 = rest[-1]
-                tokens.append(('IF', cmp_type, var1, var2))
+            rest_str = ' '.join(words[1:])
+            if ' och ' in rest_str:
+                # Compound AND: "Om a är 0 och b är 1" → IF_AND [(EQ,a,0),(EQ,b,1)]
+                conditions = [parse_condition(p.strip().split()) for p in rest_str.split(' och ')]
+                tokens.append(('IF_AND', conditions))
             else:
-                tokens.append(('IF',))
+                # Single condition
+                rest = words[1:]
+                if len(rest) >= 2:
+                    var1 = rest[0]
+                    if 'än' in words:
+                        än_idx = words.index('än')
+                        var2 = words[än_idx + 1] if än_idx + 1 < len(words) else rest[-1]
+                        cmp_type = 'LT' if ('mindre' in words) else 'GT'
+                    else:
+                        är_i = words.index('är') if 'är' in words else -1
+                        negated = är_i > 0 and words[är_i - 1] == 'inte'
+                        after_är = words[är_i + 1:] if är_i >= 0 else []
+                        if after_är and after_är[0] == 'tom':
+                            var2 = 'texten '
+                        elif after_är and after_är[0] == 'texten':
+                            var2 = ' '.join(after_är) if len(after_är) > 1 else 'texten '
+                        else:
+                            var2 = rest[-1]
+                        cmp_type = 'NE' if negated else 'EQ'
+                    tokens.append(('IF', cmp_type, var1, var2))
+                else:
+                    tokens.append(('IF',))
         
         elif first == 'Annars':
             # ELSE is handled by the IF parser - don't create token here
@@ -303,6 +356,15 @@ def tokenize(src):
             var2 = words[2] if len(words) > 2 else '0'
             tokens.append(('SET', var1, var2))
         
+        elif 'är' in words and 'minus' in words:
+            # "x är y minus z" → MINUS x y z
+            var = first
+            parts = words[words.index('är')+1:]
+            minus_idx = parts.index('minus')
+            left = ' '.join(parts[:minus_idx]).strip()
+            right = ' '.join(parts[minus_idx+1:]).strip()
+            tokens.append(('MINUS', var, left, right))
+
         elif 'är' in words and 'pluss' in words:
             # "x är y pluss z" → PLUS x y z
             var = first
@@ -332,13 +394,19 @@ def parse(tokens):
         i = pos
         while i < len(tokens) and tokens[i][0] != 'END':
             tok = tokens[i]
-            if tok[0] == 'IF':
+            if tok[0] == 'IF_AND':
+                i += 1
+                if_body, i = parse_block(i)
+                blk.append(('IF_AND', tok[1], if_body))
+            elif tok[0] == 'IF':
                 if len(tok) >= 4:
                     cmp_type, v1, v2 = tok[1], tok[2], tok[3]
                     if cmp_type == 'LT':
                         blk.append(('CMP_LT', v1, v2))
                     elif cmp_type == 'GT':
                         blk.append(('CMP_GT', v1, v2))
+                    elif cmp_type == 'NE':
+                        blk.append(('CMP_NE', v1, v2))
                     else:
                         blk.append(('CMP', v1, v2))
                 i += 1
@@ -376,6 +444,9 @@ def parse(tokens):
         elif tok[0] in ('SKRIV_VAR', 'SKRIV_VAR_NL'):
             stmts.append(tok)
             i += 1
+        elif tok[0] == 'SKRIV_PARTS':
+            stmts.append(tok)
+            i += 1
         elif tok[0] == 'SET':
             stmts.append(tok)
             i += 1
@@ -394,7 +465,7 @@ def parse(tokens):
         elif tok[0] in ('SKRIV_BUF', 'SKRIV_BUF_NL'):
             stmts.append(tok)
             i += 1
-        elif tok[0] == 'PLUS':
+        elif tok[0] in ('PLUS', 'MINUS'):
             stmts.append(tok)
             i += 1
         elif tok[0] == 'FOR':
@@ -533,6 +604,16 @@ def parse(tokens):
         elif tok[0] in ('GREJ_CALL', 'ANROPA', 'ANROPA_RES'):
             stmts.append(tok)
             i += 1
+        elif tok[0] == 'IF_AND':
+            body = []
+            i += 1
+            while i < len(tokens) and tokens[i][0] not in ('END', 'ELSE'):
+                body.append(tokens[i])
+                i += 1
+            if i < len(tokens) and tokens[i][0] == 'END':
+                i += 1
+            stmts.append(('IF_AND', tok[1], body))
+
         elif tok[0] == 'IF':
             # Check for upcoming ELSE
             has_else = False
@@ -552,6 +633,8 @@ def parse(tokens):
                     stmts.append(('CMP_LT', var1, var2))
                 elif cmp_type == 'GT':
                     stmts.append(('CMP_GT', var1, var2))
+                elif cmp_type == 'NE':
+                    stmts.append(('CMP_NE', var1, var2))
                 else:
                     stmts.append(('CMP', var1, var2))
             
@@ -580,13 +663,7 @@ def parse(tokens):
                 if i < len(tokens) and tokens[i][0] == 'END':
                     i += 1
         
-        elif tok[0] == 'CMP':
-            stmts.append(tok)
-            i += 1
-        elif tok[0] == 'CMP_LT':
-            stmts.append(tok)
-            i += 1
-        elif tok[0] == 'CMP_GT':
+        elif tok[0] in ('CMP', 'CMP_NE', 'CMP_LT', 'CMP_GT'):
             stmts.append(tok)
             i += 1
         elif tok[0] == 'ELSE':
@@ -953,6 +1030,28 @@ def compile_to_asm(stmts, target='linux'):
                     code.append(f"    mov $1, %eax")
                     code.append(f"    syscall")
         
+        elif op == 'SKRIV_PARTS':
+            nl = stmt[1]
+            parts = stmt[2]
+            for j, part in enumerate(parts):
+                is_last = (j == len(parts) - 1)
+                if part.startswith('text i '):
+                    buf = part[len('text i '):]
+                    if is_last and nl:
+                        compile_stmt(('SKRIV_BUF_NL', buf))
+                    else:
+                        compile_stmt(('SKRIV_BUF', buf))
+                elif part in var_reg or part in var_types:
+                    if is_last and nl:
+                        compile_stmt(('SKRIV_VAR_NL', part))
+                    else:
+                        compile_stmt(('SKRIV_VAR', part))
+                else:
+                    if is_last and nl:
+                        compile_stmt(('SKRIV_NL', part))
+                    else:
+                        compile_stmt(('SKRIV', part))
+
         elif op == 'SET':
             var = stmt[1]
             val = stmt[2]
@@ -982,26 +1081,29 @@ def compile_to_asm(stmts, target='linux'):
             lbl_strip = new_label()
             lbl_strip_null = new_label()
             lbl_strip_done = new_label()
+            # Read into input_buf (same as READ) so char indexing still works,
+            # then copy to the text variable buffer for string comparison.
             if target == 'windows':
                 to_save, align_pad = win_call_save()
-                code.append(f"    lea {buf}(%rip), %rax")
-                code.append(f"    movb $0, (%rax)  # pre-zero")
+                code.append(f"    lea input_buf(%rip), %rax")
+                code.append(f"    movb $0, (%rax)  # pre-zero: 0 on EOF")
                 code.append(f"    mov $0, %ecx")
                 code.append(f"    call __acrt_iob_func")
                 code.append(f"    mov %rax, %r8")
-                code.append(f"    lea {buf}(%rip), %rcx")
+                code.append(f"    lea input_buf(%rip), %rcx")
                 code.append(f"    mov $256, %edx")
                 code.append(f"    call fgets")
                 win_call_restore(to_save, align_pad)
             else:
-                code.append(f"    lea {buf}(%rip), %rax")
+                code.append(f"    lea input_buf(%rip), %rax")
                 code.append(f"    movb $0, (%rax)")
                 code.append(f"    mov $0, %eax")
                 code.append(f"    mov $0, %edi")
-                code.append(f"    lea {buf}(%rip), %rsi")
+                code.append(f"    lea input_buf(%rip), %rsi")
                 code.append(f"    mov $256, %edx")
                 code.append(f"    syscall")
-            code.append(f"    lea {buf}(%rip), %rsi")
+            # strip trailing \n / \r from input_buf
+            code.append(f"    lea input_buf(%rip), %rsi")
             code.append(f"{lbl_strip}:")
             code.append(f"    movb (%rsi), %al")
             code.append(f"    testb %al, %al")
@@ -1015,6 +1117,17 @@ def compile_to_asm(stmts, target='linux'):
             code.append(f"{lbl_strip_null}:")
             code.append(f"    movb $0, (%rsi)")
             code.append(f"{lbl_strip_done}:")
+            # copy input_buf -> text variable so while/if conditions can compare it
+            if target == 'windows':
+                to_save, align_pad = win_call_save()
+                code.append(f"    lea {buf}(%rip), %rcx")
+                code.append(f"    lea input_buf(%rip), %rdx")
+                code.append(f"    call strcpy")
+                win_call_restore(to_save, align_pad)
+            else:
+                code.append(f"    lea {buf}(%rip), %rdi")
+                code.append(f"    lea input_buf(%rip), %rsi")
+                code.append(f"    call strcpy")
 
         elif op == 'SET_CMP_RESULT':
             # Store result of previous CMP into target variable
@@ -1050,7 +1163,18 @@ def compile_to_asm(stmts, target='linux'):
             code.append(f"    mov {r1}, %rcx  # {var} = {left} + {right}")
             code.append(f"    add {r2}, %rcx")
             code.append(f"    mov %rcx, {reg}")
-        
+
+        elif op == 'MINUS':
+            var = stmt[1]
+            left = stmt[2]
+            right = stmt[3]
+            reg = alloc_var(var)
+            r1 = resolve(left)
+            r2 = resolve(right)
+            code.append(f"    mov {r1}, %rcx  # {var} = {left} - {right}")
+            code.append(f"    sub {r2}, %rcx")
+            code.append(f"    mov %rcx, {reg}")
+
         elif op == 'FOR':
             var = stmt[1]
             start = stmt[2]
@@ -1097,6 +1221,22 @@ def compile_to_asm(stmts, target='linux'):
                 code.append(f"    jmp {loop_start}")
                 code.append(f"{loop_end}:")
                 
+        elif op == 'IF_AND':
+            conditions, body = stmt[1], stmt[2]
+            if_end = new_label()
+            for (cmp_type, var1, var2) in conditions:
+                if cmp_type == 'LT':
+                    compile_stmt(('CMP_LT', var1, var2))
+                elif cmp_type == 'GT':
+                    compile_stmt(('CMP_GT', var1, var2))
+                else:
+                    compile_stmt(('CMP', var1, var2))
+                code.append(f"    test %al, %al")
+                code.append(f"    jz {if_end}")
+            for s in body:
+                compile_stmt(s)
+            code.append(f"{if_end}:")
+
         elif op == 'IF':
             # stmt = ('IF', body, else_body, '__HAS_ELSE__') or ('IF', body)
             # '__HAS_ELSE__' is now at the END of the tuple, not in the middle
@@ -1293,6 +1433,10 @@ def compile_to_asm(stmts, target='linux'):
                     code.append(f"    cmp {r1}, %rax")
                 code.append(f"    sete %al")
         
+        elif op == 'CMP_NE':
+            compile_stmt(('CMP', stmt[1], stmt[2]))
+            code.append(f"    xor $1, %al  # negate: NE")
+
         elif op == 'CMP_LT':
             # "x är mindre än y" → var1 < var2
             var1, var2 = stmt[1], stmt[2]
@@ -1363,17 +1507,46 @@ def compile_to_asm(stmts, target='linux'):
             cmp_type, var1, var2, body = stmt[1], stmt[2], stmt[3], stmt[4]
             loop_start = new_label()
             loop_end = new_label()
-            r1 = resolve(var1)
-            r2 = resolve(var2)
-            code.append(f"{loop_start}:  # Sålänge")
-            code.append(f"    mov {r1}, %rax")
-            code.append(f"    cmp {r2}, %rax")
-            if cmp_type == 'EQ':
-                code.append(f"    jne {loop_end}")
-            elif cmp_type == 'LT':
-                code.append(f"    jge {loop_end}")
-            elif cmp_type == 'GT':
-                code.append(f"    jle {loop_end}")
+            if cmp_type in ('EQ', 'NE') and isinstance(var2, str) and var2.startswith('texten '):
+                lit = var2[len('texten '):]
+                lit_strings.append(lit)
+                lit_idx = len(lit_strings) - 1
+                code.append(f"{loop_start}:  # Sålänge texten")
+                if target == 'windows':
+                    to_save, align_pad = win_call_save()
+                    load_text_addr(var1, '%rcx') if is_text(var1) else code.append(f"    mov {resolve(var1)}, %rcx")
+                    code.append(f"    lea lit_{lit_idx}(%rip), %rdx")
+                    code.append(f"    call strcmp")
+                    win_call_restore(to_save, align_pad)
+                else:
+                    lbl_loop = new_label(); lbl_ne = new_label(); lbl_eq = new_label(); lbl_done = new_label()
+                    load_text_addr(var1, '%rsi') if is_text(var1) else code.append(f"    mov {resolve(var1)}, %rsi")
+                    code.append(f"    lea lit_{lit_idx}(%rip), %rdi")
+                    code.append(f"{lbl_loop}:")
+                    code.append(f"    movb (%rsi), %al"); code.append(f"    movb (%rdi), %cl")
+                    code.append(f"    cmpb %cl, %al"); code.append(f"    jne {lbl_ne}")
+                    code.append(f"    testb %al, %al"); code.append(f"    jz {lbl_eq}")
+                    code.append(f"    inc %rsi"); code.append(f"    inc %rdi"); code.append(f"    jmp {lbl_loop}")
+                    code.append(f"{lbl_eq}:"); code.append(f"    xor %eax, %eax"); code.append(f"    jmp {lbl_done}")
+                    code.append(f"{lbl_ne}:"); code.append(f"    mov $1, %eax")
+                    code.append(f"{lbl_done}:")
+                code.append(f"    test %eax, %eax")
+                # EQ: loop while equal (exit when not equal); NE: loop while not equal (exit when equal)
+                code.append(f"    {'jne' if cmp_type == 'EQ' else 'je'} {loop_end}")
+            else:
+                r1 = resolve(var1)
+                r2 = resolve(var2)
+                code.append(f"{loop_start}:  # Sålänge")
+                code.append(f"    mov {r1}, %rax")
+                code.append(f"    cmp {r2}, %rax")
+                if cmp_type == 'EQ':
+                    code.append(f"    jne {loop_end}")
+                elif cmp_type == 'NE':
+                    code.append(f"    je {loop_end}")
+                elif cmp_type == 'LT':
+                    code.append(f"    jge {loop_end}")
+                elif cmp_type == 'GT':
+                    code.append(f"    jle {loop_end}")
             loop_labels.append(loop_end)
             for s in body:
                 compile_stmt(s)

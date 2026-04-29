@@ -1,0 +1,14 @@
+. Test Öka / Minska
+Sätt n till 0
+Öka n
+Öka n
+Öka n
+Skriv värdet av n
+SkrivNyRad
+Minska n
+Skriv värdet av n
+SkrivNyRad
+
+. Test text i buf in och
+KopieraBuffer hejsan till input_buf
+SkrivNyRad prefix och text i input_buf och suffix

@@ -1,5 +1,31 @@
 . skriv-reg.hiuh — registernamnsfunktioner för assemblygenerering
 
+. Skriver %rXX (utan komma, utan nyrad) baserat på registerindex 0-5
+Funktion skriv_reg med idx
+    Om idx är 0
+        Skriv %r12
+        ge 0
+    Hejdå
+    Om idx är 1
+        Skriv %r13
+        ge 0
+    Hejdå
+    Om idx är 2
+        Skriv %r8
+        ge 0
+    Hejdå
+    Om idx är 3
+        Skriv %r9
+        ge 0
+    Hejdå
+    Om idx är 4
+        Skriv %r10
+        ge 0
+    Hejdå
+    Skriv %r11
+    ge 0
+Hejdå
+
 . Skriver , %rXX\n baserat på registerindex 0-5
 Funktion skriv_komma_reg med idx
     Om idx är 0
@@ -23,6 +49,110 @@ Funktion skriv_komma_reg med idx
         ge 0
     Hejdå
     SkrivNyRad , %r11
+    ge 0
+Hejdå
+
+. Skriver inc %rXX\n baserat på registerindex 0-5
+Funktion skriv_inc_reg med idx
+    Om idx är 0
+        SkrivNyRad inc %r12
+        ge 0
+    Hejdå
+    Om idx är 1
+        SkrivNyRad inc %r13
+        ge 0
+    Hejdå
+    Om idx är 2
+        SkrivNyRad inc %r8
+        ge 0
+    Hejdå
+    Om idx är 3
+        SkrivNyRad inc %r9
+        ge 0
+    Hejdå
+    Om idx är 4
+        SkrivNyRad inc %r10
+        ge 0
+    Hejdå
+    SkrivNyRad inc %r11
+    ge 0
+Hejdå
+
+. Skriver dec %rXX\n baserat på registerindex 0-5
+Funktion skriv_dec_reg med idx
+    Om idx är 0
+        SkrivNyRad dec %r12
+        ge 0
+    Hejdå
+    Om idx är 1
+        SkrivNyRad dec %r13
+        ge 0
+    Hejdå
+    Om idx är 2
+        SkrivNyRad dec %r8
+        ge 0
+    Hejdå
+    Om idx är 3
+        SkrivNyRad dec %r9
+        ge 0
+    Hejdå
+    Om idx är 4
+        SkrivNyRad dec %r10
+        ge 0
+    Hejdå
+    SkrivNyRad dec %r11
+    ge 0
+Hejdå
+
+. Skriver %rXX\n (med nyrad) baserat på registerindex 0-5
+Funktion skriv_reg_nl med idx
+    Om idx är 0
+        SkrivNyRad %r12
+        ge 0
+    Hejdå
+    Om idx är 1
+        SkrivNyRad %r13
+        ge 0
+    Hejdå
+    Om idx är 2
+        SkrivNyRad %r8
+        ge 0
+    Hejdå
+    Om idx är 3
+        SkrivNyRad %r9
+        ge 0
+    Hejdå
+    Om idx är 4
+        SkrivNyRad %r10
+        ge 0
+    Hejdå
+    SkrivNyRad %r11
+    ge 0
+Hejdå
+
+. Skriver     movb %rXXb, (%rsi)\n baserat på registerindex 0-5
+Funktion skriv_movb_reg8_rsi med idx
+    Om idx är 0
+        SkrivNyRad     movb %r12b, (%rsi)
+        ge 0
+    Hejdå
+    Om idx är 1
+        SkrivNyRad     movb %r13b, (%rsi)
+        ge 0
+    Hejdå
+    Om idx är 2
+        SkrivNyRad     movb %r8b, (%rsi)
+        ge 0
+    Hejdå
+    Om idx är 3
+        SkrivNyRad     movb %r9b, (%rsi)
+        ge 0
+    Hejdå
+    Om idx är 4
+        SkrivNyRad     movb %r10b, (%rsi)
+        ge 0
+    Hejdå
+    SkrivNyRad     movb %r11b, (%rsi)
     ge 0
 Hejdå
 
