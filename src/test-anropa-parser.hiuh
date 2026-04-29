@@ -1,0 +1,8 @@
+. Test: standalone ANROPA (no return value) — expected output: 5
+Funktion skriv_int med n
+    SkrivNyRad värdet av n
+    ge 0
+Hejdå
+Sätt v till 5
+Anropa skriv_int med v
+JagMåsteGåNu 0

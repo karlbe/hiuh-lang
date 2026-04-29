@@ -1,0 +1,8 @@
+Läs
+Sätt träff till JämförBuffer input_buf med input_buf
+SkrivNyRad värdet av träff
+Lagra 72 vid 0 i tok_name_buf
+Lagra 0 vid 1 i tok_name_buf
+Sätt träff till JämförBuffer input_buf med tok_name_buf
+SkrivNyRad värdet av träff
+JagMåsteGåNu 0

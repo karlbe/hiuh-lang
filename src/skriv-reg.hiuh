@@ -156,6 +156,38 @@ Funktion skriv_movb_reg8_rsi med idx
     ge 0
 Hejdå
 
+. Skriver     mov %rcx/%rdx/%r8/%r9 → slot-register baserat på parameterindex 0-3
+. (param 0 → %r12, param 1 → %r13, param 2/%r8 och 3/%r9 behöver ingen flytt)
+Funktion skriv_mov_arg_to_slot med idx
+    Om idx är 0
+        SkrivNyRad     mov %rcx, %r12
+        ge 0
+    Hejdå
+    Om idx är 1
+        SkrivNyRad     mov %rdx, %r13
+        ge 0
+    Hejdå
+    ge 0
+Hejdå
+
+. Skriver , %rcx\n / , %rdx\n / , %r8\n / , %r9\n baserat på argumentindex 0-3
+Funktion skriv_komma_arg_reg_nl med idx
+    Om idx är 0
+        SkrivNyRad , %rcx
+        ge 0
+    Hejdå
+    Om idx är 1
+        SkrivNyRad , %rdx
+        ge 0
+    Hejdå
+    Om idx är 2
+        SkrivNyRad , %r8
+        ge 0
+    Hejdå
+    SkrivNyRad , %r9
+    ge 0
+Hejdå
+
 . Skriver mov %rXX, %rdx\n baserat på registerindex 0-5
 Funktion skriv_reg_rdx med idx
     Om idx är 0

@@ -1,0 +1,7 @@
+. Minimal: function with no params, returns literal — expected: 42
+Funktion get42
+    ge 42
+Hejdå
+Sätt r till Anropa get42
+SkrivNyRad värdet av r
+JagMåsteGåNu 0

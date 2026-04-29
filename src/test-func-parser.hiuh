@@ -1,0 +1,10 @@
+. Test: function definition, GE, ANROPA_RES — expected output: 7
+Funktion addera med a, b
+    Sätt s till a pluss b
+    ge s
+Hejdå
+Sätt x till 3
+Sätt y till 4
+Sätt z till Anropa addera med x, y
+SkrivNyRad värdet av z
+JagMåsteGåNu 0

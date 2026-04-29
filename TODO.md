@@ -107,10 +107,10 @@ Nästling kräver label-stack i buffer (implementeras vid behov).
 ### Fas 3 — Stränghantering
 - [x] JAMFOR buf MED lit → strcmp → result i variabel (1=match, 0=no match)
 - [x] SKRIV_NL TEXT I buf → puts(input_buf)
-- [ ] LAGRA char VID idx I buf → store byte (`movb $N, offset(%rip)`)
-- [ ] TECKEN idx UR buf → load byte (`movzbq offset(%rip), %rDST`)
-- [ ] JAMFOR_BUF buf1 MED buf2 → strcmp två buffertar
-- [ ] KopieraBuffer buf1 TILL buf2 → strcpy
+- [x] LAGRA char VID idx I buf → store byte (`movb $N, offset(%rip)`)
+- [x] TECKEN idx UR buf → load byte (`movzbq offset(%rip), %rDST`)
+- [x] JAMFOR_BUF buf1 MED buf2 → strcmp två buffertar
+- [x] KopieraBuffer buf1 TILL buf2 → strcpy
 
 ### Fas 4 — Funktioner
 - [ ] FUNC_DEF name params → function prologue + param-register-mapping

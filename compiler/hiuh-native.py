@@ -52,7 +52,14 @@ def tokenize(src):
             continue
         words = stripped.split()
         first = words[0]
-        
+        # Strip inline comments: remove everything from a bare '.' word onward
+        if first != '.':
+            try:
+                dot_i = words.index('.')
+                words = words[:dot_i]
+            except ValueError:
+                pass
+
         # Save all non-comment words to ord_lista
         if first != '.':
             ord_lista.extend(words)

@@ -1,0 +1,8 @@
+Lagra 72 vid 0 i input_buf
+Lagra 105 vid 1 i input_buf
+Lagra 0 vid 2 i input_buf
+Sätt c till tecken 0 ur input_buf
+SkrivNyRad värdet av c
+Sätt c till tecken 1 ur input_buf
+SkrivNyRad värdet av c
+JagMåsteGåNu 0

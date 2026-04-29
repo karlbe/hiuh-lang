@@ -226,7 +226,13 @@ SkrivNyRad (%rip), %rsi
 `Skriv lea ` preserves the trailing space (emitted via printf "%s" without stripping).
 Only use `och` when no part needs a trailing space — e.g. `jne L och label_nr` is fine.
 
-### Diagnosing parser output bugs: check the token stream first
+#### PowerShell: use `Select-Object -First N` instead of `head -N`
+
+`head` is not available in PowerShell. Use `Select-Object -First N` to limit output lines.
+Wrong: `python test.py | head -50`
+Correct: `python test.py | Select-Object -First 50`
+
+## Diagnosing parser output bugs: check the token stream first
 
 When the parser produces wrong assembly, run:
 ```

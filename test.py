@@ -62,7 +62,12 @@ PIPELINE_TESTS = [
     (src("test-ltgt-parser.hiuh"),  "0\n1\n2\n3\n4\n10\n"),
     (src("test-read-parser.hiuh"),  "hejsan\nvarlden\n",   b"hejsan\nvarlden\n"),
     (src("test-jamfor-parser.hiuh"), "0\n1\n",             b"nope\nhej\n"),
-    (src("test-lagra-parser.hiuh"),  "A\nB\n"),
+    (src("test-lagra-parser.hiuh"),   "A\nB\n"),
+    (src("test-tecken-parser.hiuh"),  "72\n105\n"),
+    (src("test-jamforbuf-parser.hiuh"), "1\n0\n",  b"hej\n"),
+    (src("test-kopiera-parser.hiuh"), "halloj\n",  b"halloj\n"),
+    (src("test-func-parser.hiuh"),   "7\n"),
+    (src("test-anropa-parser.hiuh"), "5\n"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -202,12 +207,13 @@ def main():
                     skipped += 1
                     continue
 
+                print(f"  ...   {name}", end="", flush=True)
                 ok, msg = runner(src_path, expected, **kwargs)
                 if ok:
-                    print(f"  {GREEN}PASS{RESET}  {name}")
+                    print(f"\r  {GREEN}PASS{RESET}  {name}")
                     passed += 1
                 else:
-                    print(f"  {RED}FAIL{RESET}  {name}  — {msg}")
+                    print(f"\r  {RED}FAIL{RESET}  {name}  — {msg}")
                     failed += 1
             print()
 

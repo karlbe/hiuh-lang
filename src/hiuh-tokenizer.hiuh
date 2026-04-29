@@ -250,6 +250,26 @@ Funktion emit_word med antal
     ge antal
 Hejdå
 
+. Strips inline comments from input_buf.
+. A dot preceded by space (or at position 0) starts a comment — writes 0 there.
+Funktion strip_inline_comment
+    Sätt i till 0
+    Sätt prev till 32
+    Sätt ch till tecken i ur input_buf
+    Sålänge ch inte är 0
+        Om ch är 46
+            Om prev är 32
+                Lagra 0 vid i i input_buf
+                ge 0
+            Hejdå
+        Hejdå
+        Sätt prev till ch
+        Öka i
+        Sätt ch till tecken i ur input_buf
+    Hejdå
+    ge 0
+Hejdå
+
 . --- Huvudprogram ---
 . Variabler (7 max): antal, j, i_ord, klar, rad, i (for), tecken (for)
 Sätt antal till 0
@@ -259,6 +279,7 @@ Sätt klar till 0
 
 Läs till rad
 Sålänge rad inte är tom
+    Anropa strip_inline_comment
     För i från 0 till 255
         Sätt tecken till tecken i ur input_buf
         Om tecken är 0
@@ -281,7 +302,6 @@ Sålänge rad inte är tom
             Sätt klar till 0
         Hejdå
     Hejdå
-    . Flush any word at end of line (no trailing whitespace before null byte)
     Om i_ord är 1
         Sätt i_ord till 0
         Lagra i_ord vid j i ord_buf
