@@ -1,0 +1,27 @@
+. test-text-func.hiuh — testar Text-argument till funktioner
+. Förväntad output:
+.   hej
+.   1
+.   0
+
+Funktion skriv_text med t är Text
+    SkrivNyRad värdet av t
+    ge 0
+Hejdå
+
+Funktion är_hej med t är Text
+    Sätt träff till t är texten hej
+    ge träff
+Hejdå
+
+Sätt meddelande till texten hej
+Anropa skriv_text med meddelande
+
+Sätt res till Anropa är_hej med meddelande
+SkrivNyRad värdet av res
+
+Sätt annan till texten världen
+Sätt res till Anropa är_hej med annan
+SkrivNyRad värdet av res
+
+JagMåsteGåNu 0

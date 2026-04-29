@@ -204,12 +204,19 @@ def tokenize(src):
                     tokens.append(('CMP_BUF_BUF', 'träff', buf1, buf2))
 
         elif first == 'Funktion':
-            # Real function definition: Funktion foo med x, y
+            # Real function definition: Funktion foo med t är Text, n är Heltal
             name = words[1] if len(words) > 1 else ''
             if 'med' in words:
                 med_i = words.index('med')
                 args_str = ' '.join(words[med_i+1:])
-                params = [p.strip() for p in args_str.split(',') if p.strip()]
+                raw_params = [p.strip() for p in args_str.split(',') if p.strip()]
+                params = []
+                for rp in raw_params:
+                    if ' är ' in rp:
+                        pname, ptype = rp.split(' är ', 1)
+                        params.append((pname.strip(), ptype.strip()))
+                    else:
+                        params.append((rp.strip(), 'Heltal'))
             else:
                 params = []
             tokens.append(('FUNC_DEF', name, params))
@@ -636,18 +643,42 @@ def compile_to_asm(stmts, target='linux'):
         var_types[v] = 'Text'
         return text_bufs[v]
 
-    def emit_strcpy(dest_buf, src_buf):
+    def is_text(v):
+        return var_types.get(v) in ('Text', 'TextPtr')
+
+    def load_text_addr(v, reg):
+        """Emit code to load the address of v's text buffer into reg."""
+        t = var_types.get(v)
+        if t == 'Text':
+            code.append(f"    lea {text_bufs[v]}(%rip), {reg}")
+        elif t == 'TextPtr':
+            code.append(f"    mov {var_reg[v]}, {reg}")
+
+    def emit_strcpy(dest_var_or_buf, src_var_or_buf):
+        """Copy text. Args may be variable names (looked up) or raw buffer labels."""
         if target == 'windows':
             to_save, align_pad = win_call_save()
-            code.append(f"    lea {dest_buf}(%rip), %rcx")
-            code.append(f"    lea {src_buf}(%rip), %rdx")
+            if dest_var_or_buf in var_types:
+                load_text_addr(dest_var_or_buf, '%rcx')
+            else:
+                code.append(f"    lea {dest_var_or_buf}(%rip), %rcx")
+            if src_var_or_buf in var_types:
+                load_text_addr(src_var_or_buf, '%rdx')
+            else:
+                code.append(f"    lea {src_var_or_buf}(%rip), %rdx")
             code.append(f"    call strcpy")
             win_call_restore(to_save, align_pad)
         else:
             lbl_loop = new_label()
             lbl_done = new_label()
-            code.append(f"    lea {dest_buf}(%rip), %rdi")
-            code.append(f"    lea {src_buf}(%rip), %rsi")
+            if dest_var_or_buf in var_types:
+                load_text_addr(dest_var_or_buf, '%rdi')
+            else:
+                code.append(f"    lea {dest_var_or_buf}(%rip), %rdi")
+            if src_var_or_buf in var_types:
+                load_text_addr(src_var_or_buf, '%rsi')
+            else:
+                code.append(f"    lea {src_var_or_buf}(%rip), %rsi")
             code.append(f"{lbl_loop}:")
             code.append(f"    movb (%rsi), %al")
             code.append(f"    movb %al, (%rdi)")
@@ -743,9 +774,14 @@ def compile_to_asm(stmts, target='linux'):
             code.append(f"    subq $32, %rsp  # shadow space")
 
         arg_regs = ['%rcx', '%rdx', '%r8', '%r9'] if target == 'windows' else ['%rdi', '%rsi', '%rdx', '%rcx']
-        for j, param in enumerate(params[:4]):
+        for j, param_info in enumerate(params[:4]):
+            if isinstance(param_info, tuple):
+                param, ptype = param_info
+            else:
+                param, ptype = param_info, 'Heltal'
             reg = alloc_var(param)
             code.append(f"    mov {arg_regs[j]}, {reg}  # param {param}")
+            var_types[param] = 'TextPtr' if ptype == 'Text' else 'Heltal'
 
         func_returned[0] = False
         for s in body:
@@ -804,18 +840,17 @@ def compile_to_asm(stmts, target='linux'):
         
         elif op == 'SKRIV_VAR_NL':
             varname = stmt[1]
-            if varname in var_types and var_types[varname] == 'Text':
-                buf = text_bufs[varname]
+            if is_text(varname):
                 if target == 'windows':
                     to_save, align_pad = win_call_save()
-                    code.append(f"    lea {buf}(%rip), %rcx")
+                    load_text_addr(varname, '%rcx')
                     code.append(f"    call puts")
                     win_call_restore(to_save, align_pad)
                 else:
                     skriv_buf_used[0] = True
                     lbl_start = new_label()
                     lbl_end = new_label()
-                    code.append(f"    lea {buf}(%rip), %rsi")
+                    load_text_addr(varname, '%rsi')
                     code.append(f"    xor %rdx, %rdx")
                     code.append(f"{lbl_start}:")
                     code.append(f"    cmpb $0, (%rsi,%rdx)")
@@ -862,19 +897,18 @@ def compile_to_asm(stmts, target='linux'):
 
         elif op == 'SKRIV_VAR':
             varname = stmt[1]
-            if varname in var_types and var_types[varname] == 'Text':
-                buf = text_bufs[varname]
+            if is_text(varname):
                 fmt_s_used[0] = True
                 if target == 'windows':
                     to_save, align_pad = win_call_save()
                     code.append(f"    lea fmt_s(%rip), %rcx")
-                    code.append(f"    lea {buf}(%rip), %rdx")
+                    load_text_addr(varname, '%rdx')
                     code.append(f"    call printf")
                     win_call_restore(to_save, align_pad)
                 else:
                     lbl_start = new_label()
                     lbl_end = new_label()
-                    code.append(f"    lea {buf}(%rip), %rsi")
+                    load_text_addr(varname, '%rsi')
                     code.append(f"    xor %rdx, %rdx")
                     code.append(f"{lbl_start}:")
                     code.append(f"    cmpb $0, (%rsi,%rdx)")
@@ -922,11 +956,11 @@ def compile_to_asm(stmts, target='linux'):
         elif op == 'SET':
             var = stmt[1]
             val = stmt[2]
-            if val in var_types and var_types[val] == 'Text':
+            if is_text(val):
                 if var in var_types and var_types[var] == 'Heltal':
                     raise RuntimeError(f"Typfel: kan inte tilldela Text till Heltal-variabel '{var}'")
-                dest_buf = alloc_text_var(var)
-                emit_strcpy(dest_buf, text_bufs[val])
+                alloc_text_var(var)
+                emit_strcpy(var, val)
             else:
                 if var in var_types and var_types[var] == 'Text':
                     raise RuntimeError(f"Typfel: kan inte tilldela Heltal till Text-variabel '{var}'")
@@ -937,10 +971,10 @@ def compile_to_asm(stmts, target='linux'):
         
         elif op == 'SET_TEXT_LIT':
             var, lit = stmt[1], stmt[2]
-            buf = alloc_text_var(var)
+            alloc_text_var(var)
             lit_strings.append(lit)
             lit_idx = len(lit_strings) - 1
-            emit_strcpy(buf, f'lit_{lit_idx}')
+            emit_strcpy(var, f'lit_{lit_idx}')
 
         elif op == 'READ_TO_VAR':
             var = stmt[1]
@@ -1130,7 +1164,10 @@ def compile_to_asm(stmts, target='linux'):
             to_save, align_pad = hiuh_call_save()
             arg_regs = ['%rcx', '%rdx', '%r8', '%r9'] if target == 'windows' else ['%rdi', '%rsi', '%rdx', '%rcx']
             for j, arg in enumerate(args[:4]):
-                code.append(f"    mov {resolve(arg)}, {arg_regs[j]}")
+                if is_text(arg):
+                    load_text_addr(arg, arg_regs[j])
+                else:
+                    code.append(f"    mov {resolve(arg)}, {arg_regs[j]}")
             code.append(f"    call {func_name}")
             hiuh_call_restore(to_save, align_pad)
 
@@ -1140,7 +1177,10 @@ def compile_to_asm(stmts, target='linux'):
             to_save, align_pad = hiuh_call_save(exclude=res_reg)
             arg_regs = ['%rcx', '%rdx', '%r8', '%r9'] if target == 'windows' else ['%rdi', '%rsi', '%rdx', '%rcx']
             for j, arg in enumerate(args[:4]):
-                code.append(f"    mov {resolve(arg)}, {arg_regs[j]}")
+                if is_text(arg):
+                    load_text_addr(arg, arg_regs[j])
+                else:
+                    code.append(f"    mov {resolve(arg)}, {arg_regs[j]}")
             code.append(f"    call {func_name}")
             hiuh_call_restore(to_save, align_pad)
             code.append(f"    mov %rax, {res_reg}  # {var} = result")
@@ -1182,15 +1222,36 @@ def compile_to_asm(stmts, target='linux'):
         
         elif op == 'CMP':
             var1, var2 = stmt[1], stmt[2]
-            is_text1 = var1 in var_types and var_types[var1] == 'Text'
-            is_text2 = var2 in var_types and var_types[var2] == 'Text'
-            if is_text1 or is_text2:
-                buf1 = text_bufs.get(var1, 'input_buf')
-                buf2 = text_bufs.get(var2, 'input_buf')
+            # Inline text literal: "t är texten hej" — var2 is a text literal phrase
+            if var2.startswith('texten '):
+                lit = var2[len('texten '):]
+                lit_strings.append(lit)
+                lit_idx = len(lit_strings) - 1
                 if target == 'windows':
                     to_save, align_pad = win_call_save()
-                    code.append(f"    lea {buf1}(%rip), %rcx")
-                    code.append(f"    lea {buf2}(%rip), %rdx")
+                    load_text_addr(var1, '%rcx') if is_text(var1) else code.append(f"    mov {resolve(var1)}, %rcx")
+                    code.append(f"    lea lit_{lit_idx}(%rip), %rdx")
+                    code.append(f"    call strcmp")
+                    code.append(f"    test %eax, %eax")
+                    code.append(f"    sete %al")
+                    win_call_restore(to_save, align_pad)
+                else:
+                    lbl_loop = new_label(); lbl_ne = new_label(); lbl_eq = new_label(); lbl_done = new_label()
+                    load_text_addr(var1, '%rsi') if is_text(var1) else code.append(f"    mov {resolve(var1)}, %rsi")
+                    code.append(f"    lea lit_{lit_idx}(%rip), %rdi")
+                    code.append(f"{lbl_loop}:")
+                    code.append(f"    movb (%rsi), %al"); code.append(f"    movb (%rdi), %cl")
+                    code.append(f"    cmpb %cl, %al"); code.append(f"    jne {lbl_ne}")
+                    code.append(f"    testb %al, %al"); code.append(f"    jz {lbl_eq}")
+                    code.append(f"    inc %rsi"); code.append(f"    inc %rdi"); code.append(f"    jmp {lbl_loop}")
+                    code.append(f"{lbl_eq}:"); code.append(f"    mov $1, %rax"); code.append(f"    jmp {lbl_done}")
+                    code.append(f"{lbl_ne}:"); code.append(f"    xor %rax, %rax")
+                    code.append(f"{lbl_done}:"); code.append(f"    test %rax, %rax"); code.append(f"    setne %al")
+            elif is_text(var1) or is_text(var2):
+                if target == 'windows':
+                    to_save, align_pad = win_call_save()
+                    load_text_addr(var1, '%rcx') if is_text(var1) else code.append(f"    mov {resolve(var1)}, %rcx")
+                    load_text_addr(var2, '%rdx') if is_text(var2) else code.append(f"    mov {resolve(var2)}, %rdx")
                     code.append(f"    call strcmp")
                     code.append(f"    test %eax, %eax")
                     code.append(f"    sete %al")
@@ -1200,8 +1261,8 @@ def compile_to_asm(stmts, target='linux'):
                     lbl_ne = new_label()
                     lbl_eq = new_label()
                     lbl_done = new_label()
-                    code.append(f"    lea {buf1}(%rip), %rsi")
-                    code.append(f"    lea {buf2}(%rip), %rdi")
+                    load_text_addr(var1, '%rsi') if is_text(var1) else code.append(f"    mov {resolve(var1)}, %rsi")
+                    load_text_addr(var2, '%rdi') if is_text(var2) else code.append(f"    mov {resolve(var2)}, %rdi")
                     code.append(f"{lbl_loop}:")
                     code.append(f"    movb (%rsi), %al")
                     code.append(f"    movb (%rdi), %cl")
