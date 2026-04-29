@@ -66,8 +66,9 @@ PIPELINE_TESTS = [
     (src("test-tecken-parser.hiuh"),  "72\n105\n"),
     (src("test-jamforbuf-parser.hiuh"), "1\n0\n",  b"hej\n"),
     (src("test-kopiera-parser.hiuh"), "halloj\n",  b"halloj\n"),
-    (src("test-func-parser.hiuh"),   "7\n"),
-    (src("test-anropa-parser.hiuh"), "5\n"),
+    (src("test-func-parser.hiuh"),      "7\n"),
+    (src("test-anropa-parser.hiuh"),    "5\n"),
+    (src("test-inkludera.hiuh"),        "14\n"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -110,8 +111,10 @@ def compile_pipeline(src_path, asm_path, exe_path):
     with open(src_path, "rb") as f:
         source = f.read()
 
+    src_dir = os.path.dirname(src_path)
     tok = subprocess.Popen([TOKENIZER], stdin=subprocess.PIPE,
-                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                           stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                           cwd=src_dir)
     par = subprocess.Popen([PARSER], stdin=tok.stdout,
                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     tok.stdout.close()  # give par sole ownership of the read end

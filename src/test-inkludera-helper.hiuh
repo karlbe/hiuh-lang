@@ -1,0 +1,5 @@
+. Helper included by test-inkludera.hiuh
+Funktion dubbla med x
+    Sätt res till x pluss x
+    ge res
+Hejdå

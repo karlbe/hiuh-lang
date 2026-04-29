@@ -3,7 +3,15 @@
 
 . Keyword dispatch — uses early ge to avoid cascade, handles identifier fallback
 . Takes antal (token count so far), returns antal+1
+. inkl_mode_buf[0]=1 means next word is Inkludera filename → call LäsFil
 Funktion emit_word med antal
+    . If inkl_mode_buf is set, this word is the filename to include
+    Sätt inkl_flag till tecken 0 ur inkl_mode_buf
+    Om inkl_flag är 1
+        LäsFil text i ord_buf
+        Lagra 0 vid 0 i inkl_mode_buf
+        ge antal
+    Hejdå
     Sätt träff till Jämför ord_buf med Sätt
     Om träff är 1
         SkrivNyRad SET
@@ -108,8 +116,7 @@ Funktion emit_word med antal
     Hejdå
     Sätt träff till Jämför ord_buf med Inkludera
     Om träff är 1
-        SkrivNyRad INKLUDERA
-        Öka antal
+        Lagra 1 vid 0 i inkl_mode_buf
         ge antal
     Hejdå
     Sätt träff till Jämför ord_buf med Öka

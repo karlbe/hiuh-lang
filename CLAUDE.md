@@ -1,5 +1,9 @@
 # HIUH — Claude Code Notes
 
+## Self-hosting philosophy
+
+If a language feature is needed to cleanly self-host (i.e. to write the tokenizer or parser in HIUH itself), add that feature to the language. Do not work around missing features with hacks in the pipeline or compiler. The goal is that the pipeline (tokenizer | parser) can eventually compile itself.
+
 ## Compiling HIUH programs
 
 Run from the repo root. `hiuh.cfg` lives next to the compiler in `compiler/`.

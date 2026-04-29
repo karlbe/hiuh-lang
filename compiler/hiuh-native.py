@@ -193,7 +193,14 @@ def tokenize(src):
                 tokens.append(('READ_TO_VAR', var))
             else:
                 tokens.append(('READ',))
-        
+
+        elif first == 'LäsFil':
+            # LäsFil text i filename_buf — read file into include buffer
+            if 'i' in words:
+                i_idx = words.index('i')
+                buf = words[i_idx + 1] if i_idx + 1 < len(words) else 'input_buf'
+                tokens.append(('LAS_FIL', buf))
+
         elif first == 'tecken':
             # "tecken <index> ur <source>" - get char at index from source
             try:
@@ -811,6 +818,37 @@ def compile_to_asm(stmts, target='linux'):
         if align_pad:
             code.append(f"    addq $8, %rsp  # restore alignment pad")
 
+    def emit_incl_buf_read(lbl_copy, lbl_cr, lbl_nl, lbl_eof, lbl_after):
+        """Emit code that copies one line from _hiuh_incl_buf[pos] to input_buf.
+        Strips \\r\\n, null-terminates, advances _hiuh_incl_pos.
+        %rax must hold _hiuh_incl_pos value on entry. Falls through to lbl_after."""
+        code.append(f"    lea _hiuh_incl_buf(%rip), %rsi")
+        code.append(f"    add %rax, %rsi  # rsi = &incl_buf[pos]")
+        code.append(f"    lea input_buf(%rip), %rdi")
+        code.append(f"{lbl_copy}:")
+        code.append(f"    movb (%rsi), %al")
+        code.append(f"    cmpb $13, %al")
+        code.append(f"    je {lbl_cr}")
+        code.append(f"    cmpb $10, %al")
+        code.append(f"    je {lbl_nl}")
+        code.append(f"    testb %al, %al")
+        code.append(f"    jz {lbl_eof}")
+        code.append(f"    movb %al, (%rdi)")
+        code.append(f"    inc %rsi")
+        code.append(f"    inc %rdi")
+        code.append(f"    jmp {lbl_copy}")
+        code.append(f"{lbl_cr}:")
+        code.append(f"    inc %rsi")
+        code.append(f"    jmp {lbl_copy}")
+        code.append(f"{lbl_nl}:")
+        code.append(f"    inc %rsi  # skip \\n")
+        code.append(f"{lbl_eof}:")
+        code.append(f"    movb $0, (%rdi)")
+        code.append(f"    lea _hiuh_incl_buf(%rip), %rcx")
+        code.append(f"    sub %rcx, %rsi  # new pos = rsi - buf start")
+        code.append(f"    mov %rsi, _hiuh_incl_pos(%rip)")
+        code.append(f"    jmp {lbl_after}")
+
     def hiuh_call_save(exclude=None):
         cs = {'%r8', '%r9', '%r10', '%r11'}
         to_save = sorted(r for r in var_reg.values() if r in cs and r != exclude)
@@ -1085,11 +1123,21 @@ def compile_to_asm(stmts, target='linux'):
         elif op == 'READ_TO_VAR':
             var = stmt[1]
             buf = alloc_text_var(var)
-            lbl_strip = new_label()
+            lbl_have_data  = new_label()
+            lbl_copy       = new_label()
+            lbl_cr         = new_label()
+            lbl_nl         = new_label()
+            lbl_copy_eof   = new_label()
+            lbl_strip      = new_label()
             lbl_strip_null = new_label()
             lbl_strip_done = new_label()
+            lbl_done       = new_label()
             # Read into input_buf (same as READ) so char indexing still works,
             # then copy to the text variable buffer for string comparison.
+            # Check include buffer first
+            code.append(f"    mov _hiuh_incl_pos(%rip), %rax")
+            code.append(f"    cmp _hiuh_incl_end(%rip), %rax")
+            code.append(f"    jl {lbl_have_data}")
             if target == 'windows':
                 to_save, align_pad = win_call_save()
                 code.append(f"    lea input_buf(%rip), %rax")
@@ -1124,6 +1172,11 @@ def compile_to_asm(stmts, target='linux'):
             code.append(f"{lbl_strip_null}:")
             code.append(f"    movb $0, (%rsi)")
             code.append(f"{lbl_strip_done}:")
+            code.append(f"    jmp {lbl_done}")
+            # Include buffer path
+            code.append(f"{lbl_have_data}:")
+            emit_incl_buf_read(lbl_copy, lbl_cr, lbl_nl, lbl_copy_eof, lbl_done)
+            code.append(f"{lbl_done}:")
             # copy input_buf -> text variable so while/if conditions can compare it
             if target == 'windows':
                 to_save, align_pad = win_call_save()
@@ -1464,9 +1517,19 @@ def compile_to_asm(stmts, target='linux'):
         
         elif op == 'READ_RES':
             res_reg = alloc_var(stmt[1])
-            lbl_strip = new_label()
+            lbl_have_data  = new_label()
+            lbl_copy       = new_label()
+            lbl_cr         = new_label()
+            lbl_nl         = new_label()
+            lbl_copy_eof   = new_label()
+            lbl_strip      = new_label()
             lbl_strip_null = new_label()
             lbl_strip_done = new_label()
+            lbl_done       = new_label()
+            # Check include buffer first
+            code.append(f"    mov _hiuh_incl_pos(%rip), %rax")
+            code.append(f"    cmp _hiuh_incl_end(%rip), %rax")
+            code.append(f"    jl {lbl_have_data}")
             if target == 'windows':
                 to_save, align_pad = win_call_save(exclude=res_reg)
                 code.append(f"    lea input_buf(%rip), %rax")
@@ -1509,6 +1572,40 @@ def compile_to_asm(stmts, target='linux'):
             code.append(f"{lbl_strip_null}:")
             code.append(f"    movb $0, (%rsi)")
             code.append(f"{lbl_strip_done}:")
+            code.append(f"    jmp {lbl_done}")
+            # Include buffer path: read line, then set result=1
+            lbl_incl_after = new_label()
+            code.append(f"{lbl_have_data}:")
+            emit_incl_buf_read(lbl_copy, lbl_cr, lbl_nl, lbl_copy_eof, lbl_incl_after)
+            code.append(f"{lbl_incl_after}:")
+            code.append(f"    mov $1, {res_reg}  # got data from include buffer")
+            code.append(f"{lbl_done}:")
+
+        elif op == 'LAS_FIL':
+            # LäsFil text i buf — open file, fread into _hiuh_incl_buf
+            buf = stmt[1]
+            if buf not in ('input_buf', 'ord_buf'):
+                named_buffers.add(buf)
+            lbl_fil_done = new_label()
+            if target == 'windows':
+                to_save, align_pad = win_call_save()
+                code.append(f"    lea {buf}(%rip), %rcx")
+                code.append(f"    lea _hiuh_incl_mode(%rip), %rdx")
+                code.append(f"    call fopen")
+                code.append(f"    test %rax, %rax")
+                code.append(f"    jz {lbl_fil_done}")
+                code.append(f"    mov %rax, _hiuh_incl_fp(%rip)")
+                code.append(f"    lea _hiuh_incl_buf(%rip), %rcx")
+                code.append(f"    mov $1, %edx")
+                code.append(f"    mov $65536, %r8d")
+                code.append(f"    mov _hiuh_incl_fp(%rip), %r9")
+                code.append(f"    call fread")
+                code.append(f"    mov %rax, _hiuh_incl_end(%rip)")
+                code.append(f"    movq $0, _hiuh_incl_pos(%rip)")
+                code.append(f"    mov _hiuh_incl_fp(%rip), %rcx")
+                code.append(f"    call fclose")
+                code.append(f"{lbl_fil_done}:")
+                win_call_restore(to_save, align_pad)
 
         elif op == 'WHILE':
             cmp_type, var1, var2, body = stmt[1], stmt[2], stmt[3], stmt[4]
@@ -1562,9 +1659,19 @@ def compile_to_asm(stmts, target='linux'):
             code.append(f"{loop_end}:")
 
         elif op == 'READ':
-            lbl_strip = new_label()
+            lbl_have_data  = new_label()
+            lbl_copy       = new_label()
+            lbl_cr         = new_label()
+            lbl_nl         = new_label()
+            lbl_copy_eof   = new_label()
+            lbl_strip      = new_label()
             lbl_strip_null = new_label()
             lbl_strip_done = new_label()
+            lbl_done       = new_label()
+            # Check include buffer first
+            code.append(f"    mov _hiuh_incl_pos(%rip), %rax")
+            code.append(f"    cmp _hiuh_incl_end(%rip), %rax")
+            code.append(f"    jl {lbl_have_data}")
             if target == 'windows':
                 to_save, align_pad = win_call_save()
                 code.append(f"    lea input_buf(%rip), %rax")
@@ -1599,6 +1706,11 @@ def compile_to_asm(stmts, target='linux'):
             code.append(f"{lbl_strip_null}:")
             code.append(f"    movb $0, (%rsi)")
             code.append(f"{lbl_strip_done}:")
+            code.append(f"    jmp {lbl_done}")
+            # Include buffer path (jumped to from check above)
+            code.append(f"{lbl_have_data}:")
+            emit_incl_buf_read(lbl_copy, lbl_cr, lbl_nl, lbl_copy_eof, lbl_done)
+            code.append(f"{lbl_done}:")
         
         elif op == 'CMP_BUF_LIT':
             target_var, buf_name, literal = stmt[1], stmt[2], stmt[3]
@@ -1845,6 +1957,7 @@ def compile_to_asm(stmts, target='linux'):
         data.append(f'lit_{i}: .asciz "{escaped}"')
     data.append("num_buf: .byte 0")
     data.append("input_buf: .skip 256")
+    data.append("_hiuh_incl_mode: .asciz \"r\"")
     for buf in sorted(named_buffers):
         if buf != 'input_buf':
             data.append(f"{buf}: .skip 256")
@@ -1855,6 +1968,10 @@ def compile_to_asm(stmts, target='linux'):
     data.append(".bss")
     data.append(".align 8")
     data.append("stack: .skip 4096")
+    data.append("_hiuh_incl_buf: .skip 65536")
+    data.append("_hiuh_incl_pos: .quad 0")
+    data.append("_hiuh_incl_end: .quad 0")
+    data.append("_hiuh_incl_fp: .skip 8")
     
     out = []
     out.append(".text")
