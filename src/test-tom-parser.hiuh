@@ -1,0 +1,8 @@
+. Test SALANGES INTE AR TOM — read lines until empty (EOF)
+Sätt klar till 0
+Läs
+Sålänge klar inte är tom
+    SkrivNyRad text i input_buf
+    Läs
+Hejdå
+JagMåsteGåNu 0

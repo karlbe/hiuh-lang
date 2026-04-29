@@ -353,6 +353,22 @@ Funktion hantera med tok är Text, reg_next
             Lagra label_nr vid 0 i label_buf
             ge reg_next
         Hejdå
+        . TOM — empty string check against input_buf
+        Sätt träff till Jämför input_buf med TOM
+        Om träff är 1
+            Sätt label_nr till tecken 0 ur label_buf
+            Lagra 1 vid 0 i block_buf
+            SkrivNyRad cmpb $0, input_buf(%rip)
+            Om idx3 är 1
+                SkrivNyRad je L och label_nr
+            Hejdå
+            Om idx3 är 0
+                SkrivNyRad jne L och label_nr
+            Hejdå
+            Öka label_nr
+            Lagra label_nr vid 0 i label_buf
+            ge reg_next
+        Hejdå
         . Equal / not-equal case
         Sätt idx2 till Anropa hitta_var
         Sätt label_nr till tecken 0 ur label_buf
@@ -362,10 +378,10 @@ Funktion hantera med tok är Text, reg_next
             Skriv cmp $ och text i input_buf och ,
             Anropa skriv_reg_nl med idx
             Om idx3 är 1
-                SkrivNyRad je L och label_nr   . INTE: skip if equal
+                SkrivNyRad je L och label_nr
             Hejdå
             Om idx3 är 0
-                SkrivNyRad jne L och label_nr  . normal: skip if not equal
+                SkrivNyRad jne L och label_nr
             Hejdå
             Öka label_nr
             Lagra label_nr vid 0 i label_buf
@@ -450,6 +466,25 @@ Funktion hantera med tok är Text, reg_next
             Anropa skriv_komma_reg med idx
             Öka label_nr
             SkrivNyRad jle L och label_nr
+            Öka label_nr
+            Lagra label_nr vid 0 i label_buf
+            ge reg_next
+        Hejdå
+        . TOM — empty string check against input_buf
+        Sätt träff till Jämför input_buf med TOM
+        Om träff är 1
+            Sätt label_nr till tecken 0 ur label_buf
+            Lagra 2 vid 0 i block_buf
+            SkrivNyRad L och label_nr och :
+            Lagra label_nr vid 0 i loop_top_buf
+            SkrivNyRad cmpb $0, input_buf(%rip)
+            Öka label_nr
+            Om idx3 är 1
+                SkrivNyRad je L och label_nr
+            Hejdå
+            Om idx3 är 0
+                SkrivNyRad jne L och label_nr
+            Hejdå
             Öka label_nr
             Lagra label_nr vid 0 i label_buf
             ge reg_next
