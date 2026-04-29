@@ -1,81 +1,122 @@
 # HIUH Självkompilering - TODO
 
 ## Mål
-- [ ] HIUH kompilator skriven i HIUH som kan kompilera sig själv
+Kompilator skriven i HIUH som kan kompilera sig själv.
+Pipeline: `hiuh-tokenizer.exe < source.hiuh | hiuh-parser.exe > out.s`
+
+---
 
 ## Status
 
-### Tokenizer (hiuh-tokenizer.hiuh) - KLAR
-- [x] Tokenizer fungerar korrekt
-- [x] Output: `SET\nx\nTILL\n5\n4` (token per rad + count)
-- [x] Multiline input stöds
-- [x] 27 nyckelord: SET, FOR, IF, ELSE, END, READ, SKRIV_NL, SKRIV, LAGRA, JAMFOR, JAMFOR_BUF, EXIT, BREAK, TILL, FRAN, AR, PLUS, UR, VID, MED, TECKEN, AN, MINDRE, STORRE, VARDET, AV, TEXT, I, GE
+### Tokenizer (src/hiuh-tokenizer.hiuh) — KLAR
+Läser tecken från stdin, skriver ett token per rad till stdout.
+Tokens: SET FOR IF ELSE END READ SKRIV_NL SKRIV LAGRA JAMFOR JAMFOR_BUF
+        EXIT BREAK TILL FRAN AR PLUS UR VID MED TECKEN AN MINDRE STORRE
+        VARDET AV TEXT I GE  + identifierare/literaler
 
-### Native kompilator (native/hiuh-native.py) - KLAR
-- [x] Windows x64 assembly output
-- [x] KopieraBuffer (buffer copy)
-- [x] Sålänge (while loop)
-- [x] 7 register (%r12-%r11, %rbp)
-- [x] Verkliga funktionsanrop (call/ret)
-- [x] Rekursion stöds (test-rekursion.exe)
+### Kompilator (compiler/hiuh-native.py) — KLAR
+- [x] Windows x64 assembly
+- [x] Text-typ med automatisk buffertallokering (_text_N)
+- [x] Typinferens och typkontroll (Heltal / Text)
+- [x] Text-argument till funktioner (TextPtr)
+- [x] Inkludera (preprocessor med cykeldetektion)
+- [x] Verkliga funktionsanrop med call/ret, rekursion
 
-### Parser i HIUH (hiuh-parser.hiuh) - NÄSTA STEG
-- [ ] Måste skrivas för att kunna kompilera sig själv
+### Parser (src/hiuh-parser.hiuh) — PÅGÅR
+Hanterar just nu: SET, SKRIV_NL (värdet av), EXIT
+Allt nedan behöver läggas till.
 
-## Vägen till självkompilering
+---
 
-### Steg 1: hiuh-parser.hiuh (BLOCKERANDE)
-Läser tokenström från hiuh-tokenizer.exe, skriver x86_64 assembly till stdout.
+## Språkfunktioner att lägga till i kompilatorn INNAN självkompilering
 
-Pipeline: `hiuh-tokenizer.exe < source.hiuh | hiuh-parser.exe > out.s`
+### 1. minus — subtraction (BLOCKERANDE)
+`Sätt x till a minus b`
+Behövs för: minska labelräknare, beräkna offsets.
 
-Kräver:
-- Läs token från stdin (en token per rad, t.ex. "SET", "x", "TILL", "5")
-- State machine för SET, FOR, IF, ELSE, END, SKRIV_NL, EXIT
-- Symboltabell (6 variabler: vname0..vname5 → %r12-%r11)
-- Labelhantering för loopar och if-blocks
-- Assembler-output till stdout
+### 2. Fixa `Om x är texten Y` (BLOCKERANDE för ren arkitektur)
+Just nu tar `Om`-tokenizern bara sista ordet som var2 — `Om tok är texten SET`
+jämför mot `SET` istället för `texten SET`.
 
-### Steg 2: Bygg ut parser
-- Läs-tokens: READ, CHAR_AT (tecken X ur källa)
-- Aritmetik: PLUS, MINUS, GÅNGER, DELAT
-- Jämförelser: AR, MINDRE, STORRE, LIKA, OLIKA
-- Nästlade loopar och if-satser
-- KopieraBuffer (används flitigt för att spara tokens)
+Fixa: i Om-grenen, om orden efter `är` börjar med `texten`, ta hela frasen.
 
-### Steg 3: Självkompilering
-1. hiuh-native.py kompilerar hiuh-parser.hiuh → hiuh-parser.exe
-2. hiuh-parser.exe kompilerar hiuh-tokenizer.hiuh → tokenizer.exe (samma som Python-versionen)
-3.Verifiera: båda tokenizerarna ger samma output
-
-## Tokenizer output-format
+**Varför kritiskt:** Med denna fix kan hela token-dispatch skrivas som
+en funktion med early-ge per tokentyp — ingen `done`-flagga behövs:
 
 ```
-SET              # keyword
-x                # variable name
-TILL             # keyword
-5                # value
-4                # total token count
+Funktion hantera med tok är Text
+    Om tok är texten SET
+        . hantera SET
+        ge 0
+    Hejdå
+    Om tok är texten IF
+        . hantera IF
+        ge 0
+    Hejdå
+    ge 0
+Hejdå
 ```
 
-## Assembler-output format (preliminärt)
+Det minskar parserns storlek drastiskt.
 
-```asm
-.text
-.globl main
-main:
-    push %rbp
-    mov %rsp, %rbp
-    # ... program code ...
+### 3. Sålänge med texten (trevligt att ha)
+`Sålänge tok är texten VARDET`
+Samma fix som Om ovan, i Sålänge-grenen.
 
-# Data section
-.data
-fmt_int: .asciz "%lld\n"
-```
+---
 
-Per statement:
-- SET x TILL 5    →  mov $5, %r12  (allocate x if needed)
-- FOR i 0 10      →  mov $0, %r10 / .L0: / cmp $10, %r10 / jge .L1 / ... / inc %r10 / jmp .L0 / .L1:
-- IF x AR 0       →  cmp $0, %r12 / je .L2
-- SKRIV x         →  lea fmt_int(%rip), %rcx / mov %r12, %rdx / call printf
-- EXIT 0          →  xor %ecx, %ecx / call exit
+## Parser-features att implementera (src/hiuh-parser.hiuh)
+
+Varje token-typ nedan behöver en handler i parsern.
+Använd funktions-dispatch med early-ge (se ovan) istället för
+done-flagga state machine.
+
+### Fas 1 — Grundläggande uttryck
+- [ ] PLUS a b → `mov a, %rcx / add b, %rcx / mov %rcx, %rNN`
+- [ ] SKRIV_NL literal → `call puts` (nuvarande text i input_buf)
+- [ ] SKRIV literal / SKRIV VARDET → printf utan newline
+- [ ] READ → fgets + newline-strip till input_buf
+
+### Fas 2 — Kontrollflöde (kräver labelgenerering)
+Labelgenerering: `Skriv L` + `Skriv värdet av label_nr` — fungerar redan
+med befintliga Skriv + Heltal-utskrift.
+
+- [ ] IF var AR val → `cmp / je L{n}` + spara n i variabel
+- [ ] END (för IF) → emit `L{n}:` från sparad variabel
+- [ ] WHILE var AR val → `L{n}: / cmp / jne L{n+1}` + spara båda
+- [ ] END (för WHILE) → `jmp L{n} / L{n+1}:`
+- [ ] SMALLER/LARGER (MINDRE/STORRE AN) → setl/setg varianter
+- [ ] ELSE → jmp förbi else-block + emit if-end label
+
+Nästlingsdjup: hantera 2 nivåer med label0/label1 + depth-räknare.
+FOR (För) kan skippas i fas 1 — tokenizern och parsern undviker det.
+
+### Fas 3 — Stränghantering
+- [ ] JAMFOR buf med lit → strcmp → result i variabel
+- [ ] LAGRA char vid idx i buf → store byte
+- [ ] JAMFOR_BUF buf1 med buf2
+
+### Fas 4 — Funktioner
+- [ ] FUNC_DEF name params → function prologue + param-register
+- [ ] GE val → return + epilogue
+- [ ] ANROPA func args → call med argument
+
+---
+
+## Verifieringsplan
+
+1. `python compiler/hiuh-native.py src/hiuh-tokenizer.hiuh tokenizer.exe`
+   `python compiler/hiuh-native.py src/hiuh-parser.hiuh parser.exe`
+
+2. Testa med enkelt program:
+   `tokenizer.exe < src/test-parser2.hiuh | parser.exe > out.s`
+   Assemblera + länka + kör → verifiera output matchar Python-kompilatorns.
+
+3. Testa med tokenizern själv:
+   `tokenizer.exe < src/hiuh-tokenizer.hiuh | parser.exe > tokenizer2.s`
+   Assemblera → `tokenizer2.exe < src/test-parser2.hiuh` ska ge samma output som `tokenizer.exe`.
+
+4. Sluttest — kompilera parsern med sig själv:
+   `tokenizer.exe < src/hiuh-parser.hiuh | parser.exe > parser2.s`
+   `tokenizer.exe < src/hiuh-parser.hiuh | parser2.exe > parser3.s`
+   parser2.s och parser3.s ska vara identiska.
