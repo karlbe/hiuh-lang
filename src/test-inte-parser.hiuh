@@ -1,0 +1,8 @@
+. Test INTE AR in IF and SALANGES — expected: 3 2 1 0
+Sätt x till 3
+Sålänge x inte är 0
+    SkrivNyRad värdet av x
+    Minska x
+Hejdå
+SkrivNyRad värdet av x
+JagMåsteGåNu 0

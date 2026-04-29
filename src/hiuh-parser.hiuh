@@ -293,12 +293,19 @@ Funktion hantera med tok är Text, reg_next
     Hejdå
     Om tok är texten IF
         . ex: Om x är 5         →  IF x AR 5
+        . ex: Om x inte är 5    →  IF x INTE AR 5
         . ex: Om x är y         →  IF x AR y
         . ex: Om x är mindre än 5  →  IF x AR MINDRE AN 5
         . ex: Om x är större än 5  →  IF x AR STORRE AN 5
         Läs                        . x (variable)
         Sätt idx till Anropa hitta_var
-        Läs                        . AR
+        Läs                        . AR or INTE
+        Sätt idx3 till 0           . negation flag
+        Sätt träff till Jämför input_buf med INTE
+        Om träff är 1
+            Sätt idx3 till 1
+            Läs                    . AR
+        Hejdå
         Läs                        . MINDRE, STORRE, or value
         Sätt träff till Jämför input_buf med MINDRE
         Om träff är 1
@@ -315,7 +322,7 @@ Funktion hantera med tok är Text, reg_next
                 Lagra label_nr vid 0 i label_buf
                 ge reg_next
             Hejdå
-            Skriv cmp 
+            Skriv cmp
             Anropa skriv_reg med idx2
             Anropa skriv_komma_reg med idx
             SkrivNyRad jge L och label_nr
@@ -338,7 +345,7 @@ Funktion hantera med tok är Text, reg_next
                 Lagra label_nr vid 0 i label_buf
                 ge reg_next
             Hejdå
-            Skriv cmp 
+            Skriv cmp
             Anropa skriv_reg med idx2
             Anropa skriv_komma_reg med idx
             SkrivNyRad jle L och label_nr
@@ -346,35 +353,52 @@ Funktion hantera med tok är Text, reg_next
             Lagra label_nr vid 0 i label_buf
             ge reg_next
         Hejdå
-        . Equal case
+        . Equal / not-equal case
         Sätt idx2 till Anropa hitta_var
         Sätt label_nr till tecken 0 ur label_buf
         Lagra 1 vid 0 i block_buf  . block type = IF
         Om idx2 är 99
-            . Literal: cmp $N, %rXX — jump past body if x != N
+            . Literal
             Skriv cmp $ och text i input_buf och ,
             Anropa skriv_reg_nl med idx
-            SkrivNyRad jne L och label_nr
+            Om idx3 är 1
+                SkrivNyRad je L och label_nr   . INTE: skip if equal
+            Hejdå
+            Om idx3 är 0
+                SkrivNyRad jne L och label_nr  . normal: skip if not equal
+            Hejdå
             Öka label_nr
             Lagra label_nr vid 0 i label_buf
             ge reg_next
         Hejdå
-        . Variable: cmp %rYY, %rXX — jump past body if x != y
-        Skriv cmp 
+        . Variable
+        Skriv cmp
         Anropa skriv_reg med idx2
         Anropa skriv_komma_reg med idx
-        SkrivNyRad jne L och label_nr
+        Om idx3 är 1
+            SkrivNyRad je L och label_nr
+        Hejdå
+        Om idx3 är 0
+            SkrivNyRad jne L och label_nr
+        Hejdå
         Öka label_nr
         Lagra label_nr vid 0 i label_buf
         ge reg_next
     Hejdå
     Om tok är texten SALANGES
-        . ex: Sålänge x är 5          →  SALANGES x AR 5
+        . ex: Sålänge x är 5            →  SALANGES x AR 5
+        . ex: Sålänge x inte är 5       →  SALANGES x INTE AR 5
         . ex: Sålänge x är mindre än 5  →  SALANGES x AR MINDRE AN 5
         . ex: Sålänge x är större än 5  →  SALANGES x AR STORRE AN 5
         Läs                        . x (variable)
         Sätt idx till Anropa hitta_var
-        Läs                        . AR
+        Läs                        . AR or INTE
+        Sätt idx3 till 0           . negation flag
+        Sätt träff till Jämför input_buf med INTE
+        Om träff är 1
+            Sätt idx3 till 1
+            Läs                    . AR
+        Hejdå
         Läs                        . MINDRE, STORRE, or value
         Sätt träff till Jämför input_buf med MINDRE
         Om träff är 1
@@ -430,7 +454,7 @@ Funktion hantera med tok är Text, reg_next
             Lagra label_nr vid 0 i label_buf
             ge reg_next
         Hejdå
-        . Equal case
+        . Equal / not-equal case
         Sätt idx2 till Anropa hitta_var
         Sätt label_nr till tecken 0 ur label_buf
         Lagra 2 vid 0 i block_buf  . block type = SALANGES
@@ -438,21 +462,31 @@ Funktion hantera med tok är Text, reg_next
         SkrivNyRad L och label_nr och :
         Lagra label_nr vid 0 i loop_top_buf
         Om idx2 är 99
-            . Literal: cmp $N, %rXX — exit loop if x != N
+            . Literal
             Skriv cmp $ och text i input_buf och ,
             Anropa skriv_reg_nl med idx
             Öka label_nr           . exit label = top + 1
-            SkrivNyRad jne L och label_nr
+            Om idx3 är 1
+                SkrivNyRad je L och label_nr   . INTE: exit if equal
+            Hejdå
+            Om idx3 är 0
+                SkrivNyRad jne L och label_nr  . normal: exit if not equal
+            Hejdå
             Öka label_nr           . next free = top + 2
             Lagra label_nr vid 0 i label_buf
             ge reg_next
         Hejdå
-        . Variable: cmp %rYY, %rXX
-        Skriv cmp 
+        . Variable
+        Skriv cmp
         Anropa skriv_reg med idx2
         Anropa skriv_komma_reg med idx
         Öka label_nr               . exit label = top + 1
-        SkrivNyRad jne L och label_nr
+        Om idx3 är 1
+            SkrivNyRad je L och label_nr
+        Hejdå
+        Om idx3 är 0
+            SkrivNyRad jne L och label_nr
+        Hejdå
         Öka label_nr               . next free = top + 2
         Lagra label_nr vid 0 i label_buf
         ge reg_next

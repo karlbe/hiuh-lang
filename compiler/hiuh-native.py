@@ -68,6 +68,9 @@ def tokenize(src):
             # Preserve trailing spaces: extract raw content after keyword
             raw = line.rstrip('\n\r')
             rest = raw[raw.index(first) + len(first):].lstrip()
+            # Strip inline comment from rest (bare ' . ' word)
+            if ' . ' in rest:
+                rest = rest[:rest.index(' . ')].rstrip()
             nl = first == 'SkrivNyRad'
             if rest.startswith('värdet av '):
                 tokens.append(('SKRIV_VAR_NL' if nl else 'SKRIV_VAR', words[-1]))
