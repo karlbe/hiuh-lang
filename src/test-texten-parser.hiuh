@@ -1,0 +1,15 @@
+. Test TEXTEN comparison (IF + INTE AR) — expected: 1\n1\n
+. stdin: SET\n
+Sätt result till 0
+Läs
+KopieraBuffer input_buf till tok_buf
+Om tok är texten SET
+    Sätt result till 1
+Hejdå
+SkrivNyRad värdet av result
+Sätt result till 0
+Om tok inte är texten MISS
+    Sätt result till 1
+Hejdå
+SkrivNyRad värdet av result
+JagMåsteGåNu 0

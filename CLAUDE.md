@@ -230,6 +230,17 @@ SkrivNyRad (%rip), %rsi
 `Skriv lea ` preserves the trailing space (emitted via printf "%s" without stripping).
 Only use `och` when no part needs a trailing space — e.g. `jne L och label_nr` is fine.
 
+**Tool limitation:** The Edit tool cannot write trailing spaces — they are silently dropped.
+When a `Skriv` line needs a trailing space, use `SPACE` as a placeholder and run
+`fix-trailing-spaces.py` afterwards to replace it with a real space:
+```
+Skriv leaSPACE    . placeholder — run fix-trailing-spaces.py to get "lea "
+```
+Run: `python fix-trailing-spaces.py src/hiuh-parser.hiuh`
+
+Do NOT use the inline-comment trick (`Skriv lea  .`) — it is a hack that breaks
+self-hosting because the dot becomes part of the emitted string in some contexts.
+
 #### PowerShell: use `Select-Object -First N` instead of `head -N`
 
 `head` is not available in PowerShell. Use `Select-Object -First N` to limit output lines.

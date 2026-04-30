@@ -56,8 +56,9 @@ Funktion hantera med tok är Text, reg_next
         . Not VARDET: check JAMFOR (strcmp into variable)
         Sätt träff till Jämför input_buf med JAMFOR
         Om träff är 1
-            . ex: Sätt träff till Jämför input_buf med SET  →  SET träff TILL JAMFOR input_buf MED SET
-            Läs                    . buffer name (ignored — always input_buf)
+            . ex: Sätt träff till Jämför ord_buf med SET  →  SET träff TILL JAMFOR ord_buf MED SET
+            Läs                    . buffer name → save to tok_name_buf
+            KopieraBuffer input_buf till tok_name_buf
             Läs                    . MED
             Läs                    . literal to compare against (now in input_buf)
             Sätt label_nr till tecken 0 ur label_buf
@@ -69,7 +70,9 @@ Funktion hantera med tok är Text, reg_next
             SkrivNyRad push %r10
             SkrivNyRad push %r11
             SkrivNyRad subq $32, %rsp
-            SkrivNyRad lea input_buf(%rip), %rcx
+            Skriv lea 
+            Skriv text i tok_name_buf
+            SkrivNyRad (%rip), %rcx
             SkrivNyRad lea L och label_nr och (%rip), %rdx
             SkrivNyRad call strcmp
             SkrivNyRad addq $32, %rsp
@@ -238,11 +241,12 @@ Funktion hantera med tok är Text, reg_next
     Om tok är texten SKRIV_NL
         . ex: SkrivNyRad värdet av a   →  SKRIV_NL VARDET AV a  (printf integer)
         . ex: SkrivNyRad text i buf    →  SKRIV_NL TEXT I buf   (puts buffer)
-        Läs                        . VARDET or TEXT
+        . ex: SkrivNyRad Hej!          →  SKRIV_NL Hej!         (puts literal)
+        Läs                        . VARDET, TEXT, or literal word
         Sätt träff till Jämför input_buf med TEXT
         Om träff är 1
             Läs                    . I
-            Läs                    . buf name (ignored — always input_buf)
+            Läs                    . buf name (reads into input_buf, then hardcode below)
             SkrivNyRad push %r8
             SkrivNyRad push %r9
             SkrivNyRad push %r10
@@ -257,24 +261,147 @@ Funktion hantera med tok är Text, reg_next
             SkrivNyRad pop %r8
             ge reg_next
         Hejdå
-        . VARDET AV varname — printf integer
-        Läs                        . AV
-        Läs                        . a
-        Sätt idx till Anropa hitta_var
-        . Save caller-saved regs — printf clobbers %r8–%r11
+        Sätt träff till Jämför input_buf med VARDET
+        Om träff är 1
+            . VARDET AV varname — printf integer with newline
+            Läs                    . AV
+            Läs                    . a
+            Sätt idx till Anropa hitta_var
+            SkrivNyRad push %r8
+            SkrivNyRad push %r9
+            SkrivNyRad push %r10
+            SkrivNyRad push %r11
+            SkrivNyRad subq $32, %rsp
+            SkrivNyRad lea fmt_int(%rip), %rcx
+            Anropa skriv_reg_rdx med idx
+            SkrivNyRad call printf
+            SkrivNyRad addq $32, %rsp
+            SkrivNyRad pop %r11
+            SkrivNyRad pop %r10
+            SkrivNyRad pop %r9
+            SkrivNyRad pop %r8
+            ge reg_next
+        Hejdå
+        . Literal word — puts(".asciz")
+        Sätt label_nr till tecken 0 ur label_buf
+        SkrivNyRad .section .rdata
+        SkrivNyRad L och label_nr och : .asciz " och text i input_buf och "
+        SkrivNyRad .text
         SkrivNyRad push %r8
         SkrivNyRad push %r9
         SkrivNyRad push %r10
         SkrivNyRad push %r11
         SkrivNyRad subq $32, %rsp
-        SkrivNyRad lea fmt_int(%rip), %rcx
-        Anropa skriv_reg_rdx med idx
+        SkrivNyRad lea L och label_nr och (%rip), %rcx
+        SkrivNyRad call puts
+        SkrivNyRad addq $32, %rsp
+        SkrivNyRad pop %r11
+        SkrivNyRad pop %r10
+        SkrivNyRad pop %r9
+        SkrivNyRad pop %r8
+        Öka label_nr
+        Lagra label_nr vid 0 i label_buf
+        ge reg_next
+    Hejdå
+    Om tok är texten SKRIV
+        . ex: Skriv text i buf    →  SKRIV TEXT I buf   (printf "%s" buf, no newline)
+        . ex: Skriv värdet av x  →  SKRIV VARDET AV x  (printf "%lld" x, no newline)
+        . ex: Skriv mov           →  SKRIV mov           (printf "%s" "mov", no newline)
+        Läs                        . TEXT, VARDET, or literal word
+        Sätt träff till Jämför input_buf med TEXT
+        Om träff är 1
+            Läs                    . I
+            Läs                    . buf name (reads into input_buf, then hardcode below)
+            SkrivNyRad push %r8
+            SkrivNyRad push %r9
+            SkrivNyRad push %r10
+            SkrivNyRad push %r11
+            SkrivNyRad subq $32, %rsp
+            SkrivNyRad lea fmt_s(%rip), %rcx
+            SkrivNyRad lea input_buf(%rip), %rdx
+            SkrivNyRad call printf
+            SkrivNyRad addq $32, %rsp
+            SkrivNyRad pop %r11
+            SkrivNyRad pop %r10
+            SkrivNyRad pop %r9
+            SkrivNyRad pop %r8
+            ge reg_next
+        Hejdå
+        Sätt träff till Jämför input_buf med VARDET
+        Om träff är 1
+            Läs                    . AV
+            Läs                    . var name
+            Sätt idx till Anropa hitta_var
+            SkrivNyRad push %r8
+            SkrivNyRad push %r9
+            SkrivNyRad push %r10
+            SkrivNyRad push %r11
+            SkrivNyRad subq $32, %rsp
+            SkrivNyRad lea fmt_int_nonl(%rip), %rcx
+            Anropa skriv_reg_rdx med idx
+            SkrivNyRad call printf
+            SkrivNyRad addq $32, %rsp
+            SkrivNyRad pop %r11
+            SkrivNyRad pop %r10
+            SkrivNyRad pop %r9
+            SkrivNyRad pop %r8
+            ge reg_next
+        Hejdå
+        . Literal word — emit as .asciz + printf "%s"
+        Sätt label_nr till tecken 0 ur label_buf
+        SkrivNyRad .section .rdata
+        SkrivNyRad L och label_nr och : .asciz " och text i input_buf och "
+        SkrivNyRad .text
+        SkrivNyRad push %r8
+        SkrivNyRad push %r9
+        SkrivNyRad push %r10
+        SkrivNyRad push %r11
+        SkrivNyRad subq $32, %rsp
+        SkrivNyRad lea fmt_s(%rip), %rcx
+        SkrivNyRad lea L och label_nr och (%rip), %rdx
         SkrivNyRad call printf
         SkrivNyRad addq $32, %rsp
         SkrivNyRad pop %r11
         SkrivNyRad pop %r10
         SkrivNyRad pop %r9
         SkrivNyRad pop %r8
+        Öka label_nr
+        Lagra label_nr vid 0 i label_buf
+        ge reg_next
+    Hejdå
+    Om tok är texten FOR
+        . ex: För i från 0 till 255  →  FOR i FRAN 0 TILL 255
+        . Literal from/till only (sufficient for tokenizer self-hosting)
+        Läs                        . i (loop variable)
+        KopieraBuffer input_buf till tok_name_buf
+        Sätt idx till Anropa hitta_var
+        Om idx är 99
+            Sätt idx till Anropa alloc_slot med reg_next
+            Öka reg_next
+        Hejdå
+        Läs                        . FRAN
+        Läs                        . from (literal)
+        . Emit: mov $from, %rIDX
+        Skriv     mov $ och text i input_buf
+        Anropa skriv_komma_reg med idx
+        Läs                        . TILL
+        Läs                        . till (literal)
+        KopieraBuffer input_buf till tok_name_buf
+        Sätt label_nr till tecken 0 ur label_buf
+        Sätt träff till tecken 0 ur block_depth
+        Lagra 3 vid träff i block_stack
+        SkrivNyRad L och label_nr och :
+        Lagra label_nr vid träff i loop_top_stack
+        Öka träff
+        Lagra träff vid 0 i block_depth
+        . Emit: cmp $till, %rIDX ; jge L_exit
+        Skriv cmp $ och text i tok_name_buf och ,
+        Anropa skriv_reg_nl med idx
+        Öka label_nr
+        SkrivNyRad jge L och label_nr
+        Lagra idx vid 0 i for_reg_buf
+        Öka label_nr
+        Lagra label_nr vid 0 i label_buf
         ge reg_next
     Hejdå
     Om tok är texten OKA
@@ -298,6 +425,7 @@ Funktion hantera med tok är Text, reg_next
         . ex: Om x är mindre än 5  →  IF x AR MINDRE AN 5
         . ex: Om x är större än 5  →  IF x AR STORRE AN 5
         Läs                        . x (variable)
+        KopieraBuffer input_buf till tok_name_buf
         Sätt idx till Anropa hitta_var
         Läs                        . AR or INTE
         Sätt idx3 till 0           . negation flag
@@ -306,14 +434,18 @@ Funktion hantera med tok är Text, reg_next
             Sätt idx3 till 1
             Läs                    . AR
         Hejdå
-        Läs                        . MINDRE, STORRE, or value
+        Läs                        . MINDRE, STORRE, TEXTEN, TOM, or value
         Sätt träff till Jämför input_buf med MINDRE
         Om träff är 1
             Läs                    . AN
             Läs                    . value
             Sätt idx2 till Anropa hitta_var
             Sätt label_nr till tecken 0 ur label_buf
-            Lagra 1 vid 0 i block_buf
+            Sätt träff till tecken 0 ur block_depth
+            Lagra 1 vid träff i block_stack
+            Lagra label_nr vid träff i skip_label_stack
+            Öka träff
+            Lagra träff vid 0 i block_depth
             Om idx2 är 99
                 Skriv cmp $ och text i input_buf och ,
                 Anropa skriv_reg_nl med idx
@@ -336,7 +468,11 @@ Funktion hantera med tok är Text, reg_next
             Läs                    . value
             Sätt idx2 till Anropa hitta_var
             Sätt label_nr till tecken 0 ur label_buf
-            Lagra 1 vid 0 i block_buf
+            Sätt träff till tecken 0 ur block_depth
+            Lagra 1 vid träff i block_stack
+            Lagra label_nr vid träff i skip_label_stack
+            Öka träff
+            Lagra träff vid 0 i block_depth
             Om idx2 är 99
                 Skriv cmp $ och text i input_buf och ,
                 Anropa skriv_reg_nl med idx
@@ -353,11 +489,57 @@ Funktion hantera med tok är Text, reg_next
             Lagra label_nr vid 0 i label_buf
             ge reg_next
         Hejdå
+        . TEXTEN — strcmp variable buffer against literal string
+        Sätt träff till Jämför input_buf med TEXTEN
+        Om träff är 1
+            Läs                    . the literal string to compare against
+            Sätt label_nr till tecken 0 ur label_buf
+            Sätt idx2 till tecken 0 ur block_depth
+            Lagra 1 vid idx2 i block_stack
+            Öka label_nr
+            Lagra label_nr vid idx2 i skip_label_stack
+            Minska label_nr
+            Öka idx2
+            Lagra idx2 vid 0 i block_depth
+            SkrivNyRad .section .rdata
+            SkrivNyRad L och label_nr och : .asciz " och text i input_buf och "
+            SkrivNyRad .text
+            SkrivNyRad push %r8
+            SkrivNyRad push %r9
+            SkrivNyRad push %r10
+            SkrivNyRad push %r11
+            SkrivNyRad subq $32, %rsp
+            Skriv lea 
+            Skriv text i tok_name_buf
+            SkrivNyRad _buf(%rip), %rcx
+            SkrivNyRad lea L och label_nr och (%rip), %rdx
+            SkrivNyRad call strcmp
+            SkrivNyRad addq $32, %rsp
+            SkrivNyRad pop %r11
+            SkrivNyRad pop %r10
+            SkrivNyRad pop %r9
+            SkrivNyRad pop %r8
+            SkrivNyRad testq %rax, %rax
+            Öka label_nr
+            Om idx3 är 1
+                SkrivNyRad je L och label_nr
+            Hejdå
+            Om idx3 är 0
+                SkrivNyRad jne L och label_nr
+            Hejdå
+            Öka label_nr
+            Lagra label_nr vid 0 i label_buf
+            ge reg_next
+        Hejdå
         . TOM — empty string check against input_buf
         Sätt träff till Jämför input_buf med TOM
         Om träff är 1
             Sätt label_nr till tecken 0 ur label_buf
-            Lagra 1 vid 0 i block_buf
+            Sätt träff till tecken 0 ur block_depth
+            Lagra 1 vid träff i block_stack
+            Lagra label_nr vid träff i skip_label_stack
+            Öka träff
+            Lagra träff vid 0 i block_depth
             SkrivNyRad cmpb $0, input_buf(%rip)
             Om idx3 är 1
                 SkrivNyRad je L och label_nr
@@ -372,7 +554,11 @@ Funktion hantera med tok är Text, reg_next
         . Equal / not-equal case
         Sätt idx2 till Anropa hitta_var
         Sätt label_nr till tecken 0 ur label_buf
-        Lagra 1 vid 0 i block_buf  . block type = IF
+        Sätt träff till tecken 0 ur block_depth
+        Lagra 1 vid träff i block_stack
+        Lagra label_nr vid träff i skip_label_stack
+        Öka träff
+        Lagra träff vid 0 i block_depth
         Om idx2 är 99
             . Literal
             Skriv cmp $ och text i input_buf och ,
@@ -407,6 +593,7 @@ Funktion hantera med tok är Text, reg_next
         . ex: Sålänge x är mindre än 5  →  SALANGES x AR MINDRE AN 5
         . ex: Sålänge x är större än 5  →  SALANGES x AR STORRE AN 5
         Läs                        . x (variable)
+        KopieraBuffer input_buf till tok_name_buf
         Sätt idx till Anropa hitta_var
         Läs                        . AR or INTE
         Sätt idx3 till 0           . negation flag
@@ -415,16 +602,19 @@ Funktion hantera med tok är Text, reg_next
             Sätt idx3 till 1
             Läs                    . AR
         Hejdå
-        Läs                        . MINDRE, STORRE, or value
+        Läs                        . MINDRE, STORRE, TEXTEN, TOM, or value
         Sätt träff till Jämför input_buf med MINDRE
         Om träff är 1
             Läs                    . AN
             Läs                    . value
             Sätt idx2 till Anropa hitta_var
             Sätt label_nr till tecken 0 ur label_buf
-            Lagra 2 vid 0 i block_buf
+            Sätt träff till tecken 0 ur block_depth
+            Lagra 2 vid träff i block_stack
+            Lagra label_nr vid träff i loop_top_stack
+            Öka träff
+            Lagra träff vid 0 i block_depth
             SkrivNyRad L och label_nr och :
-            Lagra label_nr vid 0 i loop_top_buf
             Om idx2 är 99
                 Skriv cmp $ och text i input_buf och ,
                 Anropa skriv_reg_nl med idx
@@ -434,7 +624,7 @@ Funktion hantera med tok är Text, reg_next
                 Lagra label_nr vid 0 i label_buf
                 ge reg_next
             Hejdå
-            Skriv cmp 
+            Skriv cmp
             Anropa skriv_reg med idx2
             Anropa skriv_komma_reg med idx
             Öka label_nr
@@ -449,9 +639,12 @@ Funktion hantera med tok är Text, reg_next
             Läs                    . value
             Sätt idx2 till Anropa hitta_var
             Sätt label_nr till tecken 0 ur label_buf
-            Lagra 2 vid 0 i block_buf
+            Sätt träff till tecken 0 ur block_depth
+            Lagra 2 vid träff i block_stack
+            Lagra label_nr vid träff i loop_top_stack
+            Öka träff
+            Lagra träff vid 0 i block_depth
             SkrivNyRad L och label_nr och :
-            Lagra label_nr vid 0 i loop_top_buf
             Om idx2 är 99
                 Skriv cmp $ och text i input_buf och ,
                 Anropa skriv_reg_nl med idx
@@ -461,7 +654,7 @@ Funktion hantera med tok är Text, reg_next
                 Lagra label_nr vid 0 i label_buf
                 ge reg_next
             Hejdå
-            Skriv cmp 
+            Skriv cmp
             Anropa skriv_reg med idx2
             Anropa skriv_komma_reg med idx
             Öka label_nr
@@ -470,13 +663,62 @@ Funktion hantera med tok är Text, reg_next
             Lagra label_nr vid 0 i label_buf
             ge reg_next
         Hejdå
+        . TEXTEN — strcmp variable buffer against literal string (loop)
+        Sätt träff till Jämför input_buf med TEXTEN
+        Om träff är 1
+            Läs                    . the literal string to compare against
+            Sätt label_nr till tecken 0 ur label_buf
+            Sätt idx2 till tecken 0 ur block_depth
+            Lagra 2 vid idx2 i block_stack
+            Öka label_nr
+            Lagra label_nr vid idx2 i loop_top_stack
+            Minska label_nr
+            Öka idx2
+            Lagra idx2 vid 0 i block_depth
+            SkrivNyRad .section .rdata
+            SkrivNyRad L och label_nr och : .asciz " och text i input_buf och "
+            SkrivNyRad .text
+            Öka label_nr
+            SkrivNyRad L och label_nr och :
+            SkrivNyRad push %r8
+            SkrivNyRad push %r9
+            SkrivNyRad push %r10
+            SkrivNyRad push %r11
+            SkrivNyRad subq $32, %rsp
+            Skriv lea 
+            Skriv text i tok_name_buf
+            SkrivNyRad _buf(%rip), %rcx
+            Minska label_nr
+            SkrivNyRad lea L och label_nr och (%rip), %rdx
+            Öka label_nr
+            SkrivNyRad call strcmp
+            SkrivNyRad addq $32, %rsp
+            SkrivNyRad pop %r11
+            SkrivNyRad pop %r10
+            SkrivNyRad pop %r9
+            SkrivNyRad pop %r8
+            SkrivNyRad testq %rax, %rax
+            Öka label_nr
+            Om idx3 är 1
+                SkrivNyRad je L och label_nr
+            Hejdå
+            Om idx3 är 0
+                SkrivNyRad jne L och label_nr
+            Hejdå
+            Öka label_nr
+            Lagra label_nr vid 0 i label_buf
+            ge reg_next
+        Hejdå
         . TOM — empty string check against input_buf
         Sätt träff till Jämför input_buf med TOM
         Om träff är 1
             Sätt label_nr till tecken 0 ur label_buf
-            Lagra 2 vid 0 i block_buf
+            Sätt träff till tecken 0 ur block_depth
+            Lagra 2 vid träff i block_stack
+            Lagra label_nr vid träff i loop_top_stack
+            Öka träff
+            Lagra träff vid 0 i block_depth
             SkrivNyRad L och label_nr och :
-            Lagra label_nr vid 0 i loop_top_buf
             SkrivNyRad cmpb $0, input_buf(%rip)
             Öka label_nr
             Om idx3 är 1
@@ -492,10 +734,13 @@ Funktion hantera med tok är Text, reg_next
         . Equal / not-equal case
         Sätt idx2 till Anropa hitta_var
         Sätt label_nr till tecken 0 ur label_buf
-        Lagra 2 vid 0 i block_buf  . block type = SALANGES
-        . Emit loop top label and save it for END
+        Sätt träff till tecken 0 ur block_depth
+        Lagra 2 vid träff i block_stack
+        Lagra label_nr vid träff i loop_top_stack
+        Öka träff
+        Lagra träff vid 0 i block_depth
+        . Emit loop top label
         SkrivNyRad L och label_nr och :
-        Lagra label_nr vid 0 i loop_top_buf
         Om idx2 är 99
             . Literal
             Skriv cmp $ och text i input_buf och ,
@@ -527,51 +772,118 @@ Funktion hantera med tok är Text, reg_next
         ge reg_next
     Hejdå
     Om tok är texten END
-        . Hejdå → END: closes IF (1), SALANGES (2), or function (block=0, func_mode=1)
-        Sätt label_nr till tecken 0 ur block_buf
-        Om label_nr är 2
+        . Hejdå → END: closes IF (1), SALANGES (2), FOR (3), or function (depth=0, func_mode=1)
+        Sätt label_nr till tecken 0 ur block_depth
+        Om label_nr är 0
+            . No active block — function END (if func_mode=1) or stray END (ignore)
+            Sätt label_nr till tecken 0 ur func_mode_buf
+            Om label_nr är 1
+                . Function END: emit done-label + epilogue
+                Sätt label_nr till tecken 0 ur func_done_label_buf
+                SkrivNyRad L och label_nr och :
+                SkrivNyRad     addq $32, %rsp
+                SkrivNyRad     pop %rbp
+                SkrivNyRad     pop %r13
+                SkrivNyRad     pop %r12
+                SkrivNyRad     ret
+                Lagra 0 vid 0 i func_mode_buf
+                Lagra 0 vid 0 i vname0
+                Lagra 0 vid 0 i vname1
+                Lagra 0 vid 0 i vname2
+                Lagra 0 vid 0 i vname3
+                Lagra 0 vid 0 i vname4
+                Lagra 0 vid 0 i vname5
+                Sätt reg_next till tecken 0 ur saved_reg_next_buf
+                ge reg_next
+            Hejdå
+            ge reg_next
+        Hejdå
+        . Pop from block stack
+        Minska label_nr
+        Lagra label_nr vid 0 i block_depth
+        Sätt träff till tecken label_nr ur block_stack
+        Om träff är 3
+            . FOR END: increment loop var, jump to top, emit exit label
+            Sätt idx2 till tecken 0 ur for_reg_buf
+            Anropa skriv_inc_reg med idx2
+            Sätt idx2 till tecken label_nr ur loop_top_stack
+            SkrivNyRad jmp L och idx2
+            Öka idx2
+            SkrivNyRad L och idx2 och :
+            ge reg_next
+        Hejdå
+        Om träff är 2
             . SALANGES END: jump back to top, emit exit label
-            Sätt label_nr till tecken 0 ur loop_top_buf
-            SkrivNyRad jmp L och label_nr
-            Öka label_nr           . exit label = top + 1
-            SkrivNyRad L och label_nr och :
-            Lagra 0 vid 0 i block_buf
+            Sätt idx2 till tecken label_nr ur loop_top_stack
+            SkrivNyRad jmp L och idx2
+            Öka idx2
+            SkrivNyRad L och idx2 och :
             ge reg_next
         Hejdå
-        Om label_nr är 1
+        Om träff är 1
             . IF END: emit the skip label
-            Sätt label_nr till tecken 0 ur label_buf
-            Minska label_nr
-            SkrivNyRad L och label_nr och :
-            Lagra 0 vid 0 i block_buf
-            ge reg_next
-        Hejdå
-        . block_buf == 0: function END (if func_mode=1) or stray END (ignore)
-        Sätt label_nr till tecken 0 ur func_mode_buf
-        Om label_nr är 1
-            . Function END: emit done-label + epilogue
-            Sätt label_nr till tecken 0 ur func_done_label_buf
-            SkrivNyRad L och label_nr och :
-            SkrivNyRad     addq $32, %rsp
-            SkrivNyRad     pop %rbp
-            SkrivNyRad     pop %r13
-            SkrivNyRad     pop %r12
-            SkrivNyRad     ret
-            Lagra 0 vid 0 i func_mode_buf
-            Lagra 0 vid 0 i vname0
-            Lagra 0 vid 0 i vname1
-            Lagra 0 vid 0 i vname2
-            Lagra 0 vid 0 i vname3
-            Lagra 0 vid 0 i vname4
-            Lagra 0 vid 0 i vname5
-            Sätt reg_next till tecken 0 ur saved_reg_next_buf
+            Sätt idx2 till tecken label_nr ur skip_label_stack
+            SkrivNyRad L och idx2 och :
             ge reg_next
         Hejdå
         ge reg_next
     Hejdå
     Om tok är texten READ
-        . ex: Läs  →  READ  (fgets into input_buf, strips newline)
-        Sätt label_nr till tecken 0 ur label_buf
+        . ex: Läs → READ. Checks _hiuh_incl_buf first, then fgets from stdin.
+        . Labels: L_N=fgets entry, L_{N+1}=strip loop, L_{N+2}=strip null,
+        .         L_{N+3}=done, L_{N+4}=copy loop, L_{N+5}=copy cr, L_{N+6}=copy nl/eof
+        Sätt label_nr till tecken 0 ur label_buf  . label_nr = N
+        . --- Check incl_buf ---
+        SkrivNyRad     mov _hiuh_incl_pos(%rip), %rax
+        SkrivNyRad     cmp _hiuh_incl_end(%rip), %rax
+        SkrivNyRad     jge L och label_nr        . jge L_N → fgets path if incl empty
+        . === incl_buf copy path ===
+        SkrivNyRad     lea _hiuh_incl_buf(%rip), %rsi
+        SkrivNyRad     mov _hiuh_incl_pos(%rip), %rax
+        SkrivNyRad     add %rax, %rsi
+        SkrivNyRad     lea input_buf(%rip), %rdi
+        Öka label_nr                              . N+1
+        Öka label_nr                              . N+2
+        Öka label_nr                              . N+3
+        Öka label_nr                              . N+4
+        SkrivNyRad L och label_nr och :           . L_{N+4}: copy loop
+        SkrivNyRad     movb (%rsi), %al
+        SkrivNyRad     cmpb $13, %al
+        Öka label_nr                              . N+5
+        SkrivNyRad     je L och label_nr          . je L_{N+5} cr
+        SkrivNyRad     cmpb $10, %al
+        Öka label_nr                              . N+6
+        SkrivNyRad     je L och label_nr          . je L_{N+6} nl
+        SkrivNyRad     testb %al, %al
+        SkrivNyRad     jz L och label_nr          . jz L_{N+6} eof
+        Minska label_nr                           . N+5
+        Minska label_nr                           . N+4
+        SkrivNyRad     movb %al, (%rdi)
+        SkrivNyRad     inc %rsi
+        SkrivNyRad     inc %rdi
+        SkrivNyRad     jmp L och label_nr         . jmp L_{N+4}
+        Öka label_nr                              . N+5
+        SkrivNyRad L och label_nr och :           . L_{N+5}: cr
+        SkrivNyRad     inc %rsi
+        Minska label_nr                           . N+4
+        SkrivNyRad     jmp L och label_nr         . jmp L_{N+4}
+        Öka label_nr                              . N+5
+        Öka label_nr                              . N+6
+        SkrivNyRad L och label_nr och :           . L_{N+6}: nl/eof
+        SkrivNyRad     movb $0, (%rdi)
+        SkrivNyRad     inc %rsi
+        SkrivNyRad     lea _hiuh_incl_buf(%rip), %rcx
+        SkrivNyRad     sub %rcx, %rsi
+        SkrivNyRad     mov %rsi, _hiuh_incl_pos(%rip)
+        Minska label_nr                           . N+5
+        Minska label_nr                           . N+4
+        Minska label_nr                           . N+3
+        SkrivNyRad     jmp L och label_nr         . jmp L_{N+3} done
+        . === fgets path entry L_N ===
+        Minska label_nr                           . N+2
+        Minska label_nr                           . N+1
+        Minska label_nr                           . N
+        SkrivNyRad L och label_nr och :           . L_N: fgets path
         SkrivNyRad push %r8
         SkrivNyRad push %r9
         SkrivNyRad push %r10
@@ -590,27 +902,32 @@ Funktion hantera med tok är Text, reg_next
         SkrivNyRad pop %r10
         SkrivNyRad pop %r9
         SkrivNyRad pop %r8
+        . strip loop
         SkrivNyRad lea input_buf(%rip), %rsi
-        SkrivNyRad L och label_nr och :
+        Öka label_nr                              . N+1
+        SkrivNyRad L och label_nr och :           . L_{N+1}: strip loop
         SkrivNyRad movb (%rsi), %al
         SkrivNyRad testb %al, %al
-        Öka label_nr
-        Öka label_nr
-        SkrivNyRad jz L och label_nr
-        Minska label_nr
+        Öka label_nr                              . N+2
+        Öka label_nr                              . N+3
+        SkrivNyRad jz L och label_nr              . jz L_{N+3} done
+        Minska label_nr                           . N+2
         SkrivNyRad cmpb $10, %al
-        SkrivNyRad je L och label_nr
+        SkrivNyRad je L och label_nr              . je L_{N+2}
         SkrivNyRad cmpb $13, %al
-        SkrivNyRad je L och label_nr
-        Minska label_nr
+        SkrivNyRad je L och label_nr              . je L_{N+2}
+        Minska label_nr                           . N+1
         SkrivNyRad inc %rsi
-        SkrivNyRad jmp L och label_nr
-        Öka label_nr
-        SkrivNyRad L och label_nr och :
+        SkrivNyRad jmp L och label_nr             . jmp L_{N+1}
+        Öka label_nr                              . N+2
+        SkrivNyRad L och label_nr och :           . L_{N+2}: strip null
         SkrivNyRad movb $0, (%rsi)
-        Öka label_nr
-        SkrivNyRad L och label_nr och :
-        Öka label_nr
+        Öka label_nr                              . N+3
+        SkrivNyRad L och label_nr och :           . L_{N+3}: done
+        Öka label_nr                              . N+4
+        Öka label_nr                              . N+5
+        Öka label_nr                              . N+6
+        Öka label_nr                              . N+7
         Lagra label_nr vid 0 i label_buf
         ge reg_next
     Hejdå
@@ -671,8 +988,24 @@ Funktion hantera med tok är Text, reg_next
         ge reg_next
     Hejdå
     Om tok är texten BREAK
-        . ex: Bryt  →  BREAK  (jumps to loop exit)
-        Sätt label_nr till tecken 0 ur loop_top_buf
+        . ex: Bryt → BREAK (jumps to exit of innermost SALANGES or FOR)
+        Sätt idx till tecken 0 ur block_depth
+        Minska idx
+        Sätt idx2 till tecken idx ur block_stack
+        Sätt träff till 0
+        Sålänge träff är 0
+            Om idx2 är 2
+                Sätt träff till 1
+            Hejdå
+            Om idx2 är 3
+                Sätt träff till 1
+            Hejdå
+            Om träff är 0
+                Minska idx
+                Sätt idx2 till tecken idx ur block_stack
+            Hejdå
+        Hejdå
+        Sätt label_nr till tecken idx ur loop_top_stack
         Öka label_nr               . exit label = top + 1
         SkrivNyRad jmp L och label_nr
         ge reg_next
@@ -864,23 +1197,51 @@ Funktion hantera med tok är Text, reg_next
         Hejdå
         ge reg_next
     Hejdå
+    Om tok är texten LAS_FIL
+        . ex: LäsFil text i ord_buf → LAS_FIL TEXT I ord_buf
+        . Opens the file named by the content of the buffer, freads into _hiuh_incl_buf.
+        Läs                        . TEXT
+        Läs                        . I
+        Läs                        . buf name (now in input_buf, e.g. "ord_buf")
+        Sätt label_nr till tecken 0 ur label_buf
+        SkrivNyRad push %r8
+        SkrivNyRad push %r9
+        SkrivNyRad push %r10
+        SkrivNyRad push %r11
+        SkrivNyRad subq $32, %rsp
+        Skriv lea 
+        Skriv text i input_buf
+        SkrivNyRad (%rip), %rcx
+        SkrivNyRad lea _hiuh_incl_mode(%rip), %rdx
+        SkrivNyRad call fopen
+        SkrivNyRad test %rax, %rax
+        SkrivNyRad jz L och label_nr
+        SkrivNyRad mov %rax, _hiuh_incl_fp(%rip)
+        SkrivNyRad lea _hiuh_incl_buf(%rip), %rcx
+        SkrivNyRad mov $1, %edx
+        SkrivNyRad mov $65536, %r8d
+        SkrivNyRad mov _hiuh_incl_fp(%rip), %r9
+        SkrivNyRad call fread
+        SkrivNyRad mov %rax, _hiuh_incl_end(%rip)
+        SkrivNyRad lea _hiuh_incl_buf(%rip), %rdi
+        SkrivNyRad add %rax, %rdi
+        SkrivNyRad movb $0, (%rdi)
+        SkrivNyRad movq $0, _hiuh_incl_pos(%rip)
+        SkrivNyRad mov _hiuh_incl_fp(%rip), %rcx
+        SkrivNyRad call fclose
+        SkrivNyRad L och label_nr och :
+        SkrivNyRad addq $32, %rsp
+        SkrivNyRad pop %r11
+        SkrivNyRad pop %r10
+        SkrivNyRad pop %r9
+        SkrivNyRad pop %r8
+        Öka label_nr
+        Lagra label_nr vid 0 i label_buf
+        ge reg_next
+    Hejdå
     Om tok är texten EXIT
         SkrivNyRad xor %ecx, %ecx
         SkrivNyRad call exit
-        SkrivNyRad addq $32, %rsp
-        SkrivNyRad pop %rbp
-        SkrivNyRad pop %r13
-        SkrivNyRad pop %r12
-        SkrivNyRad ret
-        SkrivNyRad .data
-        SkrivNyRad fmt_int: .byte 37,108,108,100,10,0
-        SkrivNyRad input_buf: .space 256
-        SkrivNyRad tok_name_buf: .space 256
-        SkrivNyRad func_mode_buf: .space 1
-        SkrivNyRad func_done_label_buf: .space 1
-        SkrivNyRad func_over_label_buf: .space 1
-        SkrivNyRad saved_reg_next_buf: .space 1
-        SkrivNyRad has_comma_buf: .space 1
         ge reg_next
     Hejdå
     ge reg_next
@@ -901,8 +1262,37 @@ SkrivNyRad subq $32, %rsp
 SkrivNyRad mov $65001, %ecx
 SkrivNyRad call SetConsoleOutputCP
 
+Lagra 0 vid 0 i block_depth
+
 Läs till tok
 Sålänge tok inte är tom
     Sätt reg_next till Anropa hantera med tok, reg_next
     Läs till tok
 Hejdå
+SkrivNyRad xor %ecx, %ecx
+SkrivNyRad call exit
+SkrivNyRad .data
+SkrivNyRad fmt_int: .byte 37,108,108,100,10,0
+SkrivNyRad fmt_int_nonl: .byte 37,108,108,100,0
+SkrivNyRad fmt_s: .byte 37,115,0
+SkrivNyRad input_buf: .space 256
+SkrivNyRad tok_name_buf: .space 256
+SkrivNyRad func_mode_buf: .space 1
+SkrivNyRad func_done_label_buf: .space 1
+SkrivNyRad func_over_label_buf: .space 1
+SkrivNyRad saved_reg_next_buf: .space 1
+SkrivNyRad has_comma_buf: .space 1
+SkrivNyRad for_reg_buf: .space 1
+SkrivNyRad tok_buf: .space 256
+SkrivNyRad rad_buf: .space 256
+SkrivNyRad ord_buf: .space 256
+SkrivNyRad _hiuh_incl_mode: .byte 114,98,0
+SkrivNyRad _hiuh_incl_pos: .skip 8
+SkrivNyRad _hiuh_incl_end: .skip 8
+SkrivNyRad _hiuh_incl_fp: .skip 8
+SkrivNyRad _hiuh_incl_buf: .skip 65537
+SkrivNyRad block_stack: .space 8
+SkrivNyRad skip_label_stack: .space 8
+SkrivNyRad loop_top_stack: .space 8
+SkrivNyRad block_depth: .space 1
+SkrivNyRad skriv_handled_buf: .space 1

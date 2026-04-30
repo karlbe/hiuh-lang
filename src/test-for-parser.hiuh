@@ -1,0 +1,6 @@
+. Test FOR loop — expected: 0\n1\n2\n3\n4\n
+Sätt x till 0
+För x från 0 till 5
+    SkrivNyRad värdet av x
+Hejdå
+JagMåsteGåNu 0

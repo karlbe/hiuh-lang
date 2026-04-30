@@ -71,6 +71,9 @@ PIPELINE_TESTS = [
     (src("test-inkludera.hiuh"),        "14\n"),
     (src("test-inte-parser.hiuh"),      "3\n2\n1\n0\n"),
     (src("test-tom-parser.hiuh"),       "rad1\nrad2\n",        b"rad1\nrad2\n"),
+    (src("test-texten-parser.hiuh"),    "1\n1\n",              b"SET\n"),
+    (src("test-skriv-parser.hiuh"),     "foohej\n",           b"hej\n"),
+    (src("test-for-parser.hiuh"),       "0\n1\n2\n3\n4\n",    None),
 ]
 
 # ---------------------------------------------------------------------------

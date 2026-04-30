@@ -1135,8 +1135,14 @@ def compile_to_asm(stmts, target='linux'):
             lbl_strip_null = new_label()
             lbl_strip_done = new_label()
             lbl_done       = new_label()
+            lbl_eof_null   = new_label()
+            lbl_blank_line = new_label()
+            lbl_after_copy = new_label()
             # Read into input_buf (same as READ) so char indexing still works,
             # then copy to the text variable buffer for string comparison.
+            # Blank lines (fgets non-NULL but content empty after strip) store '\n'
+            # in the text buffer so Sålänge X inte är tom continues past blank lines.
+            # EOF (fgets NULL) leaves the text buffer empty, so the while exits.
             # Check include buffer first
             code.append(f"    mov _hiuh_incl_pos(%rip), %rax")
             code.append(f"    cmp _hiuh_incl_end(%rip), %rax")
@@ -1152,6 +1158,10 @@ def compile_to_asm(stmts, target='linux'):
                 code.append(f"    mov $256, %edx")
                 code.append(f"    call fgets")
                 win_call_restore(to_save, align_pad)
+                # %rax = fgets return (NULL=EOF, else=got data). Check BEFORE strip
+                # clobbers %al.
+                code.append(f"    test %rax, %rax")
+                code.append(f"    jz {lbl_eof_null}  # NULL = EOF, leave buf empty")
             else:
                 code.append(f"    lea input_buf(%rip), %rax")
                 code.append(f"    movb $0, (%rax)")
@@ -1160,6 +1170,8 @@ def compile_to_asm(stmts, target='linux'):
                 code.append(f"    lea input_buf(%rip), %rsi")
                 code.append(f"    mov $256, %edx")
                 code.append(f"    syscall")
+                code.append(f"    test %rax, %rax")
+                code.append(f"    jz {lbl_eof_null}  # 0 bytes = EOF")
             # strip trailing \n / \r from input_buf
             code.append(f"    lea input_buf(%rip), %rsi")
             code.append(f"{lbl_strip}:")
@@ -1175,7 +1187,14 @@ def compile_to_asm(stmts, target='linux'):
             code.append(f"{lbl_strip_null}:")
             code.append(f"    movb $0, (%rsi)")
             code.append(f"{lbl_strip_done}:")
+            # After stripping: if input_buf is now empty it was a blank line.
+            # Store '\n' in the text buffer so the Sålänge loop continues.
+            code.append(f"    movb input_buf(%rip), %al")
+            code.append(f"    testb %al, %al")
+            code.append(f"    jz {lbl_blank_line}")
             code.append(f"    jmp {lbl_done}")
+            code.append(f"{lbl_eof_null}:")
+            code.append(f"    jmp {lbl_done}  # EOF: buf stays empty")
             # Include buffer path
             code.append(f"{lbl_have_data}:")
             emit_incl_buf_read(lbl_copy, lbl_cr, lbl_nl, lbl_copy_eof, lbl_done)
@@ -1191,6 +1210,13 @@ def compile_to_asm(stmts, target='linux'):
                 code.append(f"    lea {buf}(%rip), %rdi")
                 code.append(f"    lea input_buf(%rip), %rsi")
                 code.append(f"    call strcpy")
+            code.append(f"    jmp {lbl_after_copy}")
+            code.append(f"{lbl_blank_line}:")
+            # Blank line: write '\n' (10) + '\0' to text buf so while continues
+            code.append(f"    lea {buf}(%rip), %rdi")
+            code.append(f"    movb $10, (%rdi)")
+            code.append(f"    movb $0, 1(%rdi)")
+            code.append(f"{lbl_after_copy}:")
 
         elif op == 'SET_CMP_RESULT':
             # Store result of previous CMP into target variable

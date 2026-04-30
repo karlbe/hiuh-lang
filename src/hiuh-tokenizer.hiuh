@@ -3,15 +3,8 @@
 
 . Keyword dispatch — uses early ge to avoid cascade, handles identifier fallback
 . Takes antal (token count so far), returns antal+1
-. inkl_mode_buf[0]=1 means next word is Inkludera filename → call LäsFil
+. Inkludera is handled at the line level in check_skriv — NOT here.
 Funktion emit_word med antal
-    . If inkl_mode_buf is set, this word is the filename to include
-    Sätt inkl_flag till tecken 0 ur inkl_mode_buf
-    Om inkl_flag är 1
-        LäsFil text i ord_buf
-        Lagra 0 vid 0 i inkl_mode_buf
-        ge antal
-    Hejdå
     Sätt träff till Jämför ord_buf med Sätt
     Om träff är 1
         SkrivNyRad SET
@@ -114,9 +107,10 @@ Funktion emit_word med antal
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med Inkludera
+    Sätt träff till Jämför ord_buf med LäsFil
     Om träff är 1
-        Lagra 1 vid 0 i inkl_mode_buf
+        SkrivNyRad LAS_FIL
+        Öka antal
         ge antal
     Hejdå
     Sätt träff till Jämför ord_buf med Öka
@@ -277,6 +271,194 @@ Funktion strip_inline_comment
     ge 0
 Hejdå
 
+. Handles Skriv/SkrivNyRad lines: emits token + argument without re-tokenizing.
+. Sets skriv_handled_buf[0]=1 if line was handled (caller skips char loop).
+. Returns updated antal.
+Funktion check_skriv med antal
+    . Read first word into ord_buf
+    Sätt i till 0
+    Sätt j till 0
+    Sätt ch till tecken i ur input_buf
+    Sålänge ch inte är 0
+        Om ch är mindre än 33
+            Bryt
+        Hejdå
+        Lagra ch vid j i ord_buf
+        Öka j
+        Öka i
+        Sätt ch till tecken i ur input_buf
+    Hejdå
+    Lagra 0 vid j i ord_buf
+    . Check for Inkludera at line start (line-level, before word loop)
+    Sätt is_nl till Jämför ord_buf med Inkludera
+    Om is_nl är 1
+        . Skip whitespace after Inkludera
+        Sålänge ch inte är 0
+            Om ch är större än 32
+                Bryt
+            Hejdå
+            Öka i
+            Sätt ch till tecken i ur input_buf
+        Hejdå
+        . Read filename into ord_buf
+        Sätt j till 0
+        Sålänge ch inte är 0
+            Om ch är mindre än 33
+                Bryt
+            Hejdå
+            Lagra ch vid j i ord_buf
+            Öka j
+            Öka i
+            Sätt ch till tecken i ur input_buf
+        Hejdå
+        Lagra 0 vid j i ord_buf
+        LäsFil text i ord_buf
+        Lagra 1 vid 0 i skriv_handled_buf
+        ge antal
+    Hejdå
+    Sätt is_nl till Jämför ord_buf med SkrivNyRad
+    Sätt match till Jämför ord_buf med Skriv
+    Om is_nl är 0
+        Om match är 0
+            ge antal
+        Hejdå
+    Hejdå
+    Om is_nl är 1
+        SkrivNyRad SKRIV_NL
+        Öka antal
+    Hejdå
+    Om match är 1
+        SkrivNyRad SKRIV
+        Öka antal
+    Hejdå
+    . Skip whitespace after keyword
+    Sålänge ch inte är 0
+        Om ch är större än 32
+            Bryt
+        Hejdå
+        Öka i
+        Sätt ch till tecken i ur input_buf
+    Hejdå
+    Om ch är 0
+        Lagra 1 vid 0 i skriv_handled_buf
+        ge antal
+    Hejdå
+    . Read argument word into ord_buf
+    Sätt j till 0
+    Sålänge ch inte är 0
+        Om ch är mindre än 33
+            Bryt
+        Hejdå
+        Lagra ch vid j i ord_buf
+        Öka j
+        Öka i
+        Sätt ch till tecken i ur input_buf
+    Hejdå
+    Lagra 0 vid j i ord_buf
+    . "text" → TEXT I bufname
+    Sätt match till Jämför ord_buf med text
+    Om match är 1
+        SkrivNyRad TEXT
+        Öka antal
+        Sålänge ch inte är 0
+            Om ch är större än 32
+                Bryt
+            Hejdå
+            Öka i
+            Sätt ch till tecken i ur input_buf
+        Hejdå
+        . consume "i" word
+        Sålänge ch inte är 0
+            Om ch är mindre än 33
+                Bryt
+            Hejdå
+            Öka i
+            Sätt ch till tecken i ur input_buf
+        Hejdå
+        SkrivNyRad I
+        Öka antal
+        Sålänge ch inte är 0
+            Om ch är större än 32
+                Bryt
+            Hejdå
+            Öka i
+            Sätt ch till tecken i ur input_buf
+        Hejdå
+        Sätt j till 0
+        Sålänge ch inte är 0
+            Om ch är mindre än 33
+                Bryt
+            Hejdå
+            Lagra ch vid j i ord_buf
+            Öka j
+            Öka i
+            Sätt ch till tecken i ur input_buf
+        Hejdå
+        Lagra 0 vid j i ord_buf
+        SkrivNyRad text i ord_buf
+        Öka antal
+        Lagra 1 vid 0 i skriv_handled_buf
+        ge antal
+    Hejdå
+    . "värdet" → VARDET AV varname
+    Sätt match till Jämför ord_buf med värdet
+    Om match är 1
+        SkrivNyRad VARDET
+        Öka antal
+        Sålänge ch inte är 0
+            Om ch är större än 32
+                Bryt
+            Hejdå
+            Öka i
+            Sätt ch till tecken i ur input_buf
+        Hejdå
+        . consume "av" word
+        Sålänge ch inte är 0
+            Om ch är mindre än 33
+                Bryt
+            Hejdå
+            Öka i
+            Sätt ch till tecken i ur input_buf
+        Hejdå
+        SkrivNyRad AV
+        Öka antal
+        Sålänge ch inte är 0
+            Om ch är större än 32
+                Bryt
+            Hejdå
+            Öka i
+            Sätt ch till tecken i ur input_buf
+        Hejdå
+        Sätt j till 0
+        Sålänge ch inte är 0
+            Om ch är mindre än 33
+                Bryt
+            Hejdå
+            Lagra ch vid j i ord_buf
+            Öka j
+            Öka i
+            Sätt ch till tecken i ur input_buf
+        Hejdå
+        Lagra 0 vid j i ord_buf
+        SkrivNyRad text i ord_buf
+        Öka antal
+        Lagra 1 vid 0 i skriv_handled_buf
+        ge antal
+    Hejdå
+    . Raw string: append rest of line (spaces + remaining chars) to ord_buf
+    Sålänge ch inte är 0
+        Lagra ch vid j i ord_buf
+        Öka j
+        Öka i
+        Sätt ch till tecken i ur input_buf
+    Hejdå
+    Lagra 0 vid j i ord_buf
+    SkrivNyRad text i ord_buf
+    Öka antal
+    Lagra 1 vid 0 i skriv_handled_buf
+    ge antal
+Hejdå
+
 . --- Huvudprogram ---
 . Variabler (7 max): antal, j, i_ord, klar, rad, i (for), tecken (for)
 Sätt antal till 0
@@ -287,34 +469,40 @@ Sätt klar till 0
 Läs till rad
 Sålänge rad inte är tom
     Anropa strip_inline_comment
-    För i från 0 till 255
-        Sätt tecken till tecken i ur input_buf
-        Om tecken är 0
-            Bryt
+    Lagra 0 vid 0 i skriv_handled_buf
+    Sätt antal till Anropa check_skriv med antal
+    Sätt klar till tecken 0 ur skriv_handled_buf
+    Om klar är 0
+        För i från 0 till 255
+            Sätt tecken till tecken i ur input_buf
+            Om tecken är 0
+                Bryt
+            Hejdå
+            Om tecken är mindre än 33
+                Sätt klar till i_ord
+                Sätt i_ord till 0
+            Hejdå
+            Om tecken är större än 32
+                Lagra tecken vid j i ord_buf
+                Öka j
+                Sätt i_ord till 1
+                Sätt klar till 0
+            Hejdå
+            Om klar är 1
+                Lagra i_ord vid j i ord_buf
+                Sätt antal till Anropa emit_word med antal
+                Sätt j till 0
+                Sätt klar till 0
+            Hejdå
         Hejdå
-        Om tecken är mindre än 33
-            Sätt klar till i_ord
+        Om i_ord är 1
             Sätt i_ord till 0
-        Hejdå
-        Om tecken är större än 32
-            Lagra tecken vid j i ord_buf
-            Öka j
-            Sätt i_ord till 1
-            Sätt klar till 0
-        Hejdå
-        Om klar är 1
             Lagra i_ord vid j i ord_buf
             Sätt antal till Anropa emit_word med antal
             Sätt j till 0
-            Sätt klar till 0
         Hejdå
     Hejdå
-    Om i_ord är 1
-        Sätt i_ord till 0
-        Lagra i_ord vid j i ord_buf
-        Sätt antal till Anropa emit_word med antal
-        Sätt j till 0
-    Hejdå
+    Sätt klar till 0
     Läs till rad
 Hejdå
 SkrivNyRad värdet av antal
