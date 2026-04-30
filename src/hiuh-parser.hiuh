@@ -1,9 +1,10 @@
 . hiuh-parser.hiuh — läser tokenströmen, skriver x86-64 assembly till stdout
 . Pipeline: hiuh-tokenizer.exe < source.hiuh | hiuh-parser.exe > out.s
 
-Inkludera hitta-var.hiuh
-Inkludera alloc-slot.hiuh
-Inkludera skriv-reg.hiuh
+Inkludera src/hitta-var.hiuh
+Inkludera src/alloc-slot.hiuh
+Inkludera src/skriv-reg.hiuh
+
 
 . Söker igenom input_buf och tar bort avslutande komma om det finns.
 . Sätter has_comma_buf[0]=1 om komma hittades, annars 0.
@@ -1246,7 +1247,14 @@ Funktion hantera med tok är Text, reg_next
         SkrivNyRad lea _hiuh_incl_mode(%rip), %rdx
         SkrivNyRad call fopen
         SkrivNyRad test %rax, %rax
-        SkrivNyRad jz L och label_nr
+        SkrivNyRad jnz L och label_nr
+        Skriv lea 
+        Skriv text i input_buf
+        SkrivNyRad (%rip), %rcx
+        SkrivNyRad call puts
+        SkrivNyRad mov $1, %ecx
+        SkrivNyRad call exit
+        SkrivNyRad L och label_nr och :
         SkrivNyRad mov %rax, _hiuh_incl_fp(%rip)
         SkrivNyRad lea _hiuh_incl_buf(%rip), %rcx
         SkrivNyRad mov $1, %edx
@@ -1260,7 +1268,6 @@ Funktion hantera med tok är Text, reg_next
         SkrivNyRad movq $0, _hiuh_incl_pos(%rip)
         SkrivNyRad mov _hiuh_incl_fp(%rip), %rcx
         SkrivNyRad call fclose
-        SkrivNyRad L och label_nr och :
         SkrivNyRad addq $32, %rsp
         SkrivNyRad pop %r11
         SkrivNyRad pop %r10

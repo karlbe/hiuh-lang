@@ -847,10 +847,19 @@ def compile_to_asm(stmts, target='linux'):
         code.append(f"{lbl_cr}:")
         code.append(f"    inc %rsi")
         code.append(f"    jmp {lbl_copy}")
+        lbl_not_blank = new_label()
         code.append(f"{lbl_nl}:")
         code.append(f"    inc %rsi  # skip \\n")
         code.append(f"{lbl_eof}:")
         code.append(f"    movb $0, (%rdi)")
+        # If no bytes were written (blank line), store "\n" sentinel so the
+        # while-not-empty loop doesn't mistake a blank include line for EOF.
+        code.append(f"    lea input_buf(%rip), %rcx")
+        code.append(f"    cmp %rcx, %rdi  # blank if rdi == input_buf start")
+        code.append(f"    jne {lbl_not_blank}")
+        code.append(f"    movb $10, (%rdi)   # store \\n sentinel")
+        code.append(f"    movb $0, 1(%rdi)")
+        code.append(f"{lbl_not_blank}:")
         code.append(f"    lea _hiuh_incl_buf(%rip), %rcx")
         code.append(f"    sub %rcx, %rsi  # new pos = rsi - buf start")
         code.append(f"    mov %rsi, _hiuh_incl_pos(%rip)")
@@ -1622,11 +1631,17 @@ def compile_to_asm(stmts, target='linux'):
             lbl_fil_done = new_label()
             if target == 'windows':
                 to_save, align_pad = win_call_save()
+                lbl_fil_ok = new_label()
                 code.append(f"    lea {buf}(%rip), %rcx")
                 code.append(f"    lea _hiuh_incl_mode(%rip), %rdx")
                 code.append(f"    call fopen")
                 code.append(f"    test %rax, %rax")
-                code.append(f"    jz {lbl_fil_done}")
+                code.append(f"    jnz {lbl_fil_ok}")
+                code.append(f"    lea {buf}(%rip), %rcx")
+                code.append(f"    call puts")
+                code.append(f"    mov $1, %ecx")
+                code.append(f"    call exit")
+                code.append(f"{lbl_fil_ok}:")
                 code.append(f"    mov %rax, _hiuh_incl_fp(%rip)")
                 code.append(f"    lea _hiuh_incl_buf(%rip), %rcx")
                 code.append(f"    mov $1, %edx")
@@ -1992,7 +2007,7 @@ def compile_to_asm(stmts, target='linux'):
     data.append("input_buf: .skip 256")
     data.append("_hiuh_incl_mode: .asciz \"r\"")
     for buf in sorted(named_buffers):
-        if buf != 'input_buf':
+        if buf not in ('input_buf', '_hiuh_incl_buf'):
             data.append(f"{buf}: .skip 256")
     for buf in sorted(text_bufs.values()):
         data.append(f"{buf}: .skip 256")
@@ -2045,7 +2060,11 @@ def preprocess(src, base_dir, _seen=None):
         stripped = line.strip()
         if stripped.startswith('Inkludera '):
             filename = stripped[len('Inkludera '):].strip()
-            path = os.path.join(base_dir, filename)
+            # Try CWD first (matches tokenizer runtime behaviour), then base_dir
+            if os.path.exists(filename):
+                path = filename
+            else:
+                path = os.path.join(base_dir, filename)
             real = os.path.realpath(path)
             if real in _seen:
                 raise RuntimeError(f"Inkludera: cirkulär inkludering av '{filename}'")

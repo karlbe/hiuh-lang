@@ -54,10 +54,16 @@ Data-sektionen emitteras alltid i main-epilogen (oavsett om EXIT används).
 
 ## Nästa steg (i prioritetsordning)
 
-1. **Debugga test failures (3/31 failing)** — 28/31 tests gröna, 3 assembly-fel i variabelkopia edge-cases
-2. **Verifiera tokenizer2.exe output** — skiljer sig från Python-version, behöver granska check_skriv argument-handling
-3. **B5: LAS_FIL i parsern** — krävs för att tokenizern ska kunna inkludera filer (blockerar full self-hosting)
-4. **Sluttest** — parser2.s self-hosting när allt fungerar
+1. ✅ **All 31/31 pipeline tests passing** — Variable-copy handling fixed
+2. **B5: LAS_FIL i parsern** — BLOCKERAR ALLT!
+   - Parser-generated kod kan inte läsa filer → Inkludera fungerar inte i pipeline
+   - hiuh-parser.hiuh använder Inkludera för att inkludera hitta-var.hiuh, alloc-slot.hiuh, skriv-reg.hiuh
+   - Pipeline-kompilerad parser2.s saknar dessa funktioner → bruten
+   - Python-kompilern har built-in filläsning som åtgärdar detta
+   - FIX: Implementera LAS_FIL i parser (motsvarar HIUH-statements som läser fil)
+3. **Verifiera tokenizer2.exe output** — skiljer sig från Python-version, behöver granska check_skriv argument-handling
+4. **Recompile parser2.s med LAS_FIL-stöd** — eerst after LAS_FIL implemented
+5. **Sluttest** — verify parser2.s == parser3.s (fixpoint for self-hosting)
 
 ---
 
