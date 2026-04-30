@@ -173,6 +173,30 @@ Funktion emit_word med antal
         Öka antal
         ge antal
     Hejdå
+    Sätt träff till Jämför ord_buf med "skifta"
+    Om träff är 1
+        SkrivNyRad SKIFTA
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med "vänster"
+    Om träff är 1
+        SkrivNyRad VÄNSTER
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med "höger"
+    Om träff är 1
+        SkrivNyRad HÖGER
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med "band"
+    Om träff är 1
+        SkrivNyRad BAND
+        Öka antal
+        ge antal
+    Hejdå
     Sätt träff till Jämför ord_buf med "ur"
     Om träff är 1
         SkrivNyRad UR

@@ -125,6 +125,21 @@ def tokenize(src):
                 buf2 = rw[med_i + 1] if med_i + 1 < len(rw) else ''
                 if buf1 and buf2:
                     tokens.append(('CMP_BUF_BUF', var, buf1, buf2))
+            elif 'skifta vänster' in rest:
+                parts = rest.split('skifta vänster', 1)
+                left = parts[0].strip()
+                amount = parts[1].strip()
+                tokens.append(('SHL', var, left, amount))
+            elif 'skifta höger' in rest:
+                parts = rest.split('skifta höger', 1)
+                left = parts[0].strip()
+                amount = parts[1].strip()
+                tokens.append(('SHR', var, left, amount))
+            elif ' band ' in rest:
+                parts = rest.split(' band ', 1)
+                left = parts[0].strip()
+                right = parts[1].strip()
+                tokens.append(('BAND', var, left, right))
             elif 'minus' in rest:
                 parts = rest.split('minus')
                 left = parts[0].strip()
@@ -1275,6 +1290,43 @@ def compile_to_asm(stmts, target='linux'):
             r2 = resolve(right)
             code.append(f"    mov {r1}, %rcx  # {var} = {left} - {right}")
             code.append(f"    sub {r2}, %rcx")
+            code.append(f"    mov %rcx, {reg}")
+
+        elif op == 'SHL':
+            var, left, amount = stmt[1], stmt[2], stmt[3]
+            reg = alloc_var(var)
+            r1 = resolve(left)
+            code.append(f"    mov {r1}, %rax  # {var} = {left} << {amount}")
+            try:
+                n = int(amount)
+                code.append(f"    shl ${n}, %rax")
+            except ValueError:
+                r2 = resolve(amount)
+                code.append(f"    mov {r2}, %rcx")
+                code.append(f"    shl %cl, %rax")
+            code.append(f"    mov %rax, {reg}")
+
+        elif op == 'SHR':
+            var, left, amount = stmt[1], stmt[2], stmt[3]
+            reg = alloc_var(var)
+            r1 = resolve(left)
+            code.append(f"    mov {r1}, %rax  # {var} = {left} >> {amount}")
+            try:
+                n = int(amount)
+                code.append(f"    shr ${n}, %rax")
+            except ValueError:
+                r2 = resolve(amount)
+                code.append(f"    mov {r2}, %rcx")
+                code.append(f"    shr %cl, %rax")
+            code.append(f"    mov %rax, {reg}")
+
+        elif op == 'BAND':
+            var, left, right = stmt[1], stmt[2], stmt[3]
+            reg = alloc_var(var)
+            r1 = resolve(left)
+            r2 = resolve(right)
+            code.append(f"    mov {r1}, %rcx  # {var} = {left} & {right}")
+            code.append(f"    and {r2}, %rcx")
             code.append(f"    mov %rcx, {reg}")
 
         elif op == 'FOR':
