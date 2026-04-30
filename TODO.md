@@ -28,51 +28,36 @@ Data-sektionen emitteras alltid i main-epilogen (oavsett om EXIT används).
 
 ---
 
-## Aktiva buggar — tokenizer2.exe hänger
+## Fixade buggar
 
-### Bug C1: `Sätt x till y` (variabel-till-variabel-kopia) saknas i parsern
-**Symptom:** `Sätt klar till i_ord` i FOR-loopen genererar tom kod. `klar` sätts
-aldrig till 1 vid ordgräns → `Om klar är 1`-blocket (emit_word) anropas aldrig
-mitt i raden. Hela radens innehåll hamnar i ett enda token.
+### C1: `Sätt x till y` (variabel-till-variabel-kopia) ✓ FIXED
+**Problem:** `Sätt klar till i_ord` genererade tom kod i SET-handleren.
+**Fix:** Lade till fallback-case i SET-handler: om token efter TILL inte är VARDET/JAMFOR/TECKEN/PLUS/MINUS, slå upp som variabel. Emittera `mov %rSRC, %rDST`.
+**Resultat:** `klar` sätts nu vid ordgränser i FOR-loopen, emit_word anropas korrekt.
 
-**Fix:** Lägg till hantering i SET-handleren (hiuh-parser.hiuh): om token efter
-TILL varken är VARDET, JAMFOR, TECKEN, PLUS, MINUS — är det en variabelkopia.
-Slå upp källvariabeln med hitta_var, emittera `mov %rSRC, %rDST`.
+### C2: JAMFOR-literaler tokeniseras vid självkompilering ✓ FIXED
+**Problem:** `Jämför ord_buf med Skriv` tokeniseras till `JAMFOR ord_buf MED SKRIV` → parsern genererar `strcmp(ord_buf, "SKRIV")` istället för `strcmp(ord_buf, "Skriv")`.
+**Fix:** Lade till quoted string support:
+- Tokenizer: använd `Jämför ord_buf med "Skriv"` (med citationstecken)
+- Citattecken är inte keyword, så `"Skriv"` kommer genom som identifier-token
+- Parser: ny `unquote_input_buf` funktion strippar citationstecken från literals
+- Python compiler: samma quoting/unquoting support
+**Resultat:** Nyckelord i JAMFOR-literaler överlever self-hosting intakt.
 
-### Bug C2: JAMFOR-literaler tokeniseras vid självkompilering (bootstrapping-problem)
-**Symptom:** I check_skriv jämförs `ord_buf` mot `"SKRIV_NL"` och `"SKRIV"` (token-
-formerna), inte mot `"SkrivNyRad"` och `"Skriv"`. Vid självtokenisering konverteras
-de svenska nyckelorden i `Jämför ord_buf med SkrivNyRad` till sina tokenformer, så
-check_skriv känner aldrig igen en Skriv/SkrivNyRad-rad.
-
-**Lösning:** Skriv om check_skriv i hiuh-tokenizer.hiuh att detektera "Skriv"/
-"SkrivNyRad" med teckenkodsjämförelser istället för Jämför:
-- Kontrollera att ord_buf[0]=='S'(83), ord_buf[1]=='k'(107), ord_buf[4]=='v'(118)
-- ord_buf[5]==0 → Skriv; ord_buf[5]=='N'(78) → SkrivNyRad
-- Använder befintliga variabler (ch räcker, 6 av 7 slots används redan)
-- "Inkludera" är INTE ett HIUH-nyckelord → överlever tokenisering som-är ✓
-
-### Bug C3: Möjlig infinite loop i tokenizer2.exe (okänd plats)
-Ovanstående buggar förklarar fel output men inte nödvändigtvis en hängning.
-Hängningsplatsen är ännu inte exakt identifierad. Nästa steg: sätt breakpoints
-eller lägg till debugutskrifter för att avgränsa var loopen sitter.
-
-**Kandidater:**
-- check_skriv whitespace-skip-loop (L133/L135 i tokenizer2.s rad ~1774):
-  loopar tills `ch > 32`, men triggas bara om Inkludera matchar — borde inte
-  vara problemet för vanlig input
-- Något i huvud-Sålänge-loopen som inte avslutar korrekt vid EOF
-- emit_word anropas med en buffer som aldrig termineras med null
+### C3: tokenizer2.exe hängning ✓ FIXED
+**Problem:** tokenizer2.exe hängde när det kördes med enkel input.
+**Causa:** Kombination av C1 och C2 — variabel-copy genererade tom kod + nyckelord-matchning misslyckades.
+**Resultat:** Med C1+C2 fixade, tokenizer2.exe avslutas nu normalt (inom 5s timeout).
+**Notering:** Output skiljer sig något från Python-kompilerad version (ordning av tokens/whitespace). Behöver ytterligare diagnos men HANG är löst.
 
 ---
 
 ## Nästa steg (i prioritetsordning)
 
-1. **Fixa C1** (variabelkopia i parsern) — enkel parser-fix, påverkar många program
-2. **Fixa C2** (teckenkods-check i tokenizern) — kräver omskrivning av check_skriv
-3. **Lokalisera C3** — om hängningen kvarstår efter C1+C2, debugga tokenizer2.s
-4. **B5: LAS_FIL i parsern** — krävs för att tokenizern ska kunna inkludera filer
-5. **Verifiera 31/31 pipeline-tester** efter varje fix
+1. **Debugga test failures (3/31 failing)** — 28/31 tests gröna, 3 assembly-fel i variabelkopia edge-cases
+2. **Verifiera tokenizer2.exe output** — skiljer sig från Python-version, behöver granska check_skriv argument-handling
+3. **B5: LAS_FIL i parsern** — krävs för att tokenizern ska kunna inkludera filer (blockerar full self-hosting)
+4. **Sluttest** — parser2.s self-hosting när allt fungerar
 
 ---
 
