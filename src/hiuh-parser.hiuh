@@ -177,15 +177,6 @@ Funktion hantera med tok är Text, reg_next
             Anropa skriv_reg_nl med idx
             ge reg_next
         Hejdå
-        . Not JAMFOR_BUF: check plain variable-to-variable copy: Sätt x till y
-        Sätt idx2 till Anropa hitta_var
-        Om idx2 inte är 99
-            . y is a known variable: emit mov %rSRC, %rDST
-            Skriv mov 
-            Anropa skriv_reg med idx2
-            Anropa skriv_komma_reg med idx
-            ge reg_next
-        Hejdå
         . Check ANROPA_RES — Sätt x till Anropa foo med a, b
         Sätt träff till Jämför input_buf med ANROPA
         Om träff är 1
@@ -272,6 +263,10 @@ Funktion hantera med tok är Text, reg_next
             Anropa skriv_komma_reg med idx
             ge reg_next
         Hejdå
+        . No operator: plain variable copy: Sätt x till y
+        Skriv mov 
+        Anropa skriv_reg med idx2
+        Anropa skriv_komma_reg med idx
         ge reg_next
     Hejdå
     Om tok är texten SKRIV_NL
