@@ -25,6 +25,32 @@ Funktion strip_comma
     ge 0
 Hejdå
 
+. Strips surrounding quotes from input_buf in-place if present.
+. "Skriv" → Skriv. No-op if no leading quote.
+Funktion unquote_input_buf
+    Sätt ch till tecken 0 ur input_buf
+    Om ch är 34
+        Sätt i till 0
+        Sålänge ch inte är 0
+            Öka i
+            Sätt ch till tecken i ur input_buf
+        Hejdå
+        Minska i
+        Lagra 0 vid i i input_buf
+        Sätt i till 0
+        Sätt tmp till 1
+        Sätt ch till tecken tmp ur input_buf
+        Sålänge ch inte är 0
+            Lagra ch vid i i input_buf
+            Öka i
+            Öka tmp
+            Sätt ch till tecken tmp ur input_buf
+        Hejdå
+        Lagra 0 vid i i input_buf
+    Hejdå
+    ge 0
+Hejdå
+
 . Dispatchfunktion — hanterar ett instruktionstoken
 . Returnerar (möjligen uppdaterat) reg_next
 Funktion hantera med tok är Text, reg_next
@@ -61,6 +87,7 @@ Funktion hantera med tok är Text, reg_next
             KopieraBuffer input_buf till tok_name_buf
             Läs                    . MED
             Läs                    . literal to compare against (now in input_buf)
+            Anropa unquote_input_buf
             Sätt label_nr till tecken 0 ur label_buf
             SkrivNyRad .section .rdata
             SkrivNyRad L och label_nr och : .asciz " och text i input_buf och "
@@ -148,6 +175,15 @@ Funktion hantera med tok är Text, reg_next
             SkrivNyRad sete %al
             Skriv movzbq %al, 
             Anropa skriv_reg_nl med idx
+            ge reg_next
+        Hejdå
+        . Not JAMFOR_BUF: check plain variable-to-variable copy: Sätt x till y
+        Sätt idx2 till Anropa hitta_var
+        Om idx2 inte är 99
+            . y is a known variable: emit mov %rSRC, %rDST
+            Skriv mov 
+            Anropa skriv_reg med idx2
+            Anropa skriv_komma_reg med idx
             ge reg_next
         Hejdå
         . Check ANROPA_RES — Sätt x till Anropa foo med a, b

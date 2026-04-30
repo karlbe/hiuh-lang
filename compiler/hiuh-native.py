@@ -113,6 +113,8 @@ def tokenize(src):
                 med_i = rw.index('med')
                 buf = rw[1]
                 lit = rw[med_i + 1] if med_i + 1 < len(rw) else ''
+                if lit.startswith('"') and lit.endswith('"') and len(lit) >= 2:
+                    lit = lit[1:-1]
                 if buf and lit:
                     tokens.append(('CMP_BUF_LIT', var, buf, lit))
             elif rest.startswith('JämförBuffer ') and ' med ' in rest:
@@ -238,6 +240,8 @@ def tokenize(src):
                 med_i = words.index('med')
                 buf = words[1] if med_i > 1 else ''
                 lit = words[med_i + 1] if med_i + 1 < len(words) else ''
+                if lit.startswith('"') and lit.endswith('"') and len(lit) >= 2:
+                    lit = lit[1:-1]
                 if buf and lit:
                     tokens.append(('CMP_BUF_LIT', 'träff', buf, lit))
 

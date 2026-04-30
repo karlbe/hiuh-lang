@@ -5,241 +5,241 @@
 . Takes antal (token count so far), returns antal+1
 . Inkludera is handled at the line level in check_skriv — NOT here.
 Funktion emit_word med antal
-    Sätt träff till Jämför ord_buf med Sätt
+    Sätt träff till Jämför ord_buf med "Sätt"
     Om träff är 1
         SkrivNyRad SET
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med För
+    Sätt träff till Jämför ord_buf med "För"
     Om träff är 1
         SkrivNyRad FOR
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med Om
+    Sätt träff till Jämför ord_buf med "Om"
     Om träff är 1
         SkrivNyRad IF
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med Hejdå
+    Sätt träff till Jämför ord_buf med "Hejdå"
     Om träff är 1
         SkrivNyRad END
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med Annars
+    Sätt träff till Jämför ord_buf med "Annars"
     Om träff är 1
         SkrivNyRad ELSE
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med Läs
+    Sätt träff till Jämför ord_buf med "Läs"
     Om träff är 1
         SkrivNyRad READ
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med SkrivNyRad
+    Sätt träff till Jämför ord_buf med "SkrivNyRad"
     Om träff är 1
         SkrivNyRad SKRIV_NL
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med Skriv
+    Sätt träff till Jämför ord_buf med "Skriv"
     Om träff är 1
         SkrivNyRad SKRIV
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med Lagra
+    Sätt träff till Jämför ord_buf med "Lagra"
     Om träff är 1
         SkrivNyRad LAGRA
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med Jämför
+    Sätt träff till Jämför ord_buf med "Jämför"
     Om träff är 1
         SkrivNyRad JAMFOR
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med JämförBuffer
+    Sätt träff till Jämför ord_buf med "JämförBuffer"
     Om träff är 1
         SkrivNyRad JAMFOR_BUF
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med JagMåsteGåNu
+    Sätt träff till Jämför ord_buf med "JagMåsteGåNu"
     Om träff är 1
         SkrivNyRad EXIT
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med Bryt
+    Sätt träff till Jämför ord_buf med "Bryt"
     Om träff är 1
         SkrivNyRad BREAK
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med Sålänge
+    Sätt träff till Jämför ord_buf med "Sålänge"
     Om träff är 1
         SkrivNyRad SALANGES
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med Funktion
+    Sätt träff till Jämför ord_buf med "Funktion"
     Om träff är 1
         SkrivNyRad FUNKTION
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med Anropa
+    Sätt träff till Jämför ord_buf med "Anropa"
     Om träff är 1
         SkrivNyRad ANROPA
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med KopieraBuffer
+    Sätt träff till Jämför ord_buf med "KopieraBuffer"
     Om träff är 1
         SkrivNyRad KOPIERA_BUF
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med LäsFil
+    Sätt träff till Jämför ord_buf med "LäsFil"
     Om träff är 1
         SkrivNyRad LAS_FIL
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med Öka
+    Sätt träff till Jämför ord_buf med "Öka"
     Om träff är 1
         SkrivNyRad OKA
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med Minska
+    Sätt träff till Jämför ord_buf med "Minska"
     Om träff är 1
         SkrivNyRad MINSKA
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med till
+    Sätt träff till Jämför ord_buf med "till"
     Om träff är 1
         SkrivNyRad TILL
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med från
+    Sätt träff till Jämför ord_buf med "från"
     Om träff är 1
         SkrivNyRad FRAN
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med inte
+    Sätt träff till Jämför ord_buf med "inte"
     Om träff är 1
         SkrivNyRad INTE
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med är
+    Sätt träff till Jämför ord_buf med "är"
     Om träff är 1
         SkrivNyRad AR
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med texten
+    Sätt träff till Jämför ord_buf med "texten"
     Om träff är 1
         SkrivNyRad TEXTEN
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med tom
+    Sätt träff till Jämför ord_buf med "tom"
     Om träff är 1
         SkrivNyRad TOM
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med pluss
+    Sätt träff till Jämför ord_buf med "pluss"
     Om träff är 1
         SkrivNyRad PLUS
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med minus
+    Sätt träff till Jämför ord_buf med "minus"
     Om träff är 1
         SkrivNyRad MINUS
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med ur
+    Sätt träff till Jämför ord_buf med "ur"
     Om träff är 1
         SkrivNyRad UR
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med vid
+    Sätt träff till Jämför ord_buf med "vid"
     Om träff är 1
         SkrivNyRad VID
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med med
+    Sätt träff till Jämför ord_buf med "med"
     Om träff är 1
         SkrivNyRad MED
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med tecken
+    Sätt träff till Jämför ord_buf med "tecken"
     Om träff är 1
         SkrivNyRad TECKEN
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med än
+    Sätt träff till Jämför ord_buf med "än"
     Om träff är 1
         SkrivNyRad AN
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med mindre
+    Sätt träff till Jämför ord_buf med "mindre"
     Om träff är 1
         SkrivNyRad MINDRE
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med större
+    Sätt träff till Jämför ord_buf med "större"
     Om träff är 1
         SkrivNyRad STORRE
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med värdet
+    Sätt träff till Jämför ord_buf med "värdet"
     Om träff är 1
         SkrivNyRad VARDET
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med av
+    Sätt träff till Jämför ord_buf med "av"
     Om träff är 1
         SkrivNyRad AV
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med text
+    Sätt träff till Jämför ord_buf med "text"
     Om träff är 1
         SkrivNyRad TEXT
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med i
+    Sätt träff till Jämför ord_buf med "i"
     Om träff är 1
         SkrivNyRad I
         Öka antal
         ge antal
     Hejdå
-    Sätt träff till Jämför ord_buf med ge
+    Sätt träff till Jämför ord_buf med "ge"
     Om träff är 1
         SkrivNyRad GE
         Öka antal
@@ -316,8 +316,8 @@ Funktion check_skriv med antal
         Lagra 1 vid 0 i skriv_handled_buf
         ge antal
     Hejdå
-    Sätt is_nl till Jämför ord_buf med SkrivNyRad
-    Sätt match till Jämför ord_buf med Skriv
+    Sätt is_nl till Jämför ord_buf med "SkrivNyRad"
+    Sätt match till Jämför ord_buf med "Skriv"
     Om is_nl är 0
         Om match är 0
             ge antal
