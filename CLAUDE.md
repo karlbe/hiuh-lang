@@ -39,10 +39,15 @@ hiuh-tokenizer.exe < source.hiuh | hiuh-parser.exe > out.s
 
 **IMPORTANT: Always use PowerShell (not Bash) to run .exe files.** The Bash tool uses MSYS2 bash which cannot find .exe files in the current directory. Use the PowerShell tool instead for any command that runs a .exe binary.
 
-**IMPORTANT: PowerShell does not support `<` for stdin redirection.** Use `cmd /c` for pipelines with stdin redirection:
+**IMPORTANT: PowerShell does not support `<` for stdin redirection.** Use `cmd /c` for pipelines with stdin redirection, but use **full paths** to the .exe files since `cmd /c` does not inherit the current working directory:
+```powershell
+cmd /c "g:\hiuh-lang\hiuh-tokenizer.exe < src\test.hiuh | g:\hiuh-lang\hiuh-parser.exe > out.s"
 ```
-cmd /c "hiuh-tokenizer.exe < source.hiuh | hiuh-parser.exe > out.s"
+Or change to the directory first and use relative paths with explicit `.` prefix:
+```powershell
+cd g:\hiuh-lang; cmd /c ".\hiuh-tokenizer.exe < src\test.hiuh | .\hiuh-parser.exe > out.s"
 ```
+cmd.exe does **not** inherit PowerShell's current working directory — use full paths or `.\exe` with explicit cd in the same statement.
 
 Assemble and link:
 ```
@@ -246,6 +251,13 @@ self-hosting because the dot becomes part of the emitted string in some contexts
 `head` is not available in PowerShell. Use `Select-Object -First N` to limit output lines.
 Wrong: `python test.py | head -50`
 Correct: `python test.py | Select-Object -First 50`
+
+**Also applies inside `cmd /c` pipelines** — when using `cmd /c "command | ..."`, do **not** use Unix tools like `head`, `tail`, `sed`, or `grep` in the cmd.exe shell. Either:
+1. Pipe the entire output back to PowerShell and filter there, or
+2. Use cmd.exe native commands (`findstr`, `more`, `type`) inside the quotes.
+
+Wrong: `cmd /c ".\tokenizer.exe < file.hiuh | head -50"`
+Correct: `cmd /c ".\tokenizer.exe < file.hiuh" | Select-Object -First 50`
 
 ## Diagnosing parser output bugs: check the token stream first
 

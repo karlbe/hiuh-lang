@@ -298,7 +298,7 @@ Hejdå
 . Handles Skriv/SkrivNyRad lines: emits token + argument without re-tokenizing.
 . Sets skriv_handled_buf[0]=1 if line was handled (caller skips char loop).
 . Returns updated antal.
-Funktion check_skriv med antal
+Funktion handle_inkludera med antal
     . Read first word into ord_buf
     Sätt i till 0
     Sätt j till 0
@@ -313,33 +313,52 @@ Funktion check_skriv med antal
         Sätt ch till tecken i ur input_buf
     Hejdå
     Lagra 0 vid j i ord_buf
-    . Check for Inkludera at line start (line-level, before word loop)
-    Sätt is_nl till Jämför ord_buf med Inkludera
-    Om is_nl är 1
-        . Skip whitespace after Inkludera
-        Sålänge ch inte är 0
-            Om ch är större än 32
-                Bryt
-            Hejdå
-            Öka i
-            Sätt ch till tecken i ur input_buf
-        Hejdå
-        . Read filename into ord_buf
-        Sätt j till 0
-        Sålänge ch inte är 0
-            Om ch är mindre än 33
-                Bryt
-            Hejdå
-            Lagra ch vid j i ord_buf
-            Öka j
-            Öka i
-            Sätt ch till tecken i ur input_buf
-        Hejdå
-        Lagra 0 vid j i ord_buf
-        LäsFil text i ord_buf
-        Lagra 1 vid 0 i skriv_handled_buf
+    . Check for Inkludera at line start
+    Sätt träff till Jämför ord_buf med Inkludera
+    Om träff inte är 1
         ge antal
     Hejdå
+    . Skip whitespace after Inkludera
+    Sålänge ch inte är 0
+        Om ch är större än 32
+            Bryt
+        Hejdå
+        Öka i
+        Sätt ch till tecken i ur input_buf
+    Hejdå
+    . Read filename into ord_buf
+    Sätt j till 0
+    Sålänge ch inte är 0
+        Om ch är mindre än 33
+            Bryt
+        Hejdå
+        Lagra ch vid j i ord_buf
+        Öka j
+        Öka i
+        Sätt ch till tecken i ur input_buf
+    Hejdå
+    Lagra 0 vid j i ord_buf
+    LäsFil text i ord_buf
+    Lagra 1 vid 0 i skriv_handled_buf
+    ge antal
+Hejdå
+
+Funktion handle_skriv med antal
+    . Read first word into ord_buf
+    Sätt i till 0
+    Sätt j till 0
+    Sätt ch till tecken i ur input_buf
+    Sålänge ch inte är 0
+        Om ch är mindre än 33
+            Bryt
+        Hejdå
+        Lagra ch vid j i ord_buf
+        Öka j
+        Öka i
+        Sätt ch till tecken i ur input_buf
+    Hejdå
+    Lagra 0 vid j i ord_buf
+    . Check for Skriv/SkrivNyRad
     Sätt is_nl till Jämför ord_buf med "SkrivNyRad"
     Sätt match till Jämför ord_buf med "Skriv"
     Om is_nl är 0
@@ -494,8 +513,13 @@ Läs till rad
 Sålänge rad inte är tom
     Anropa strip_inline_comment
     Lagra 0 vid 0 i skriv_handled_buf
-    Sätt antal till Anropa check_skriv med antal
+    Sätt antal till Anropa handle_inkludera med antal
     Sätt klar till tecken 0 ur skriv_handled_buf
+    Om klar är 0
+        Lagra 0 vid 0 i skriv_handled_buf
+        Sätt antal till Anropa handle_skriv med antal
+        Sätt klar till tecken 0 ur skriv_handled_buf
+    Hejdå
     Om klar är 0
         För i från 0 till 255
             Sätt tecken till tecken i ur input_buf
