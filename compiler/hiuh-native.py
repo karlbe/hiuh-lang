@@ -206,6 +206,12 @@ def tokenize(src):
         elif first == 'Bryt':
             tokens.append(('BREAK',))
 
+        elif first == 'Deklarera':
+            # Deklarera name som type
+            name = words[1] if len(words) > 1 else ''
+            typ = words[3] if len(words) > 3 else 'Heltal'  # words[2] is 'som'
+            tokens.append(('DECLARE', name, typ))
+
         elif first == 'Läs':
             if 'till' in words:
                 till_i = words.index('till')
@@ -515,6 +521,9 @@ def parse(tokens):
             stmts.append(tok)
             i += 1
         elif tok[0] == 'BREAK':
+            stmts.append(tok)
+            i += 1
+        elif tok[0] == 'DECLARE':
             stmts.append(tok)
             i += 1
         elif tok[0] == 'CHAR_AT':
@@ -1417,6 +1426,16 @@ def compile_to_asm(stmts, target='linux'):
             else:
                 code.append(f"{if_end}:")
         
+        elif op == 'DECLARE':
+            # Deklarera is a no-op in Python compiler — type tracking is automatic
+            # Just ensure it's registered in the type system
+            name, typ = stmt[1], stmt[2]
+            if typ == 'Text' and name not in text_bufs and name not in var_types:
+                text_bufs[name] = name
+                var_types[name] = 'Text'
+            elif typ == 'Heltal' and name not in var_types:
+                var_types[name] = 'Heltal'
+
         elif op == 'BREAK':
             if loop_labels:
                 code.append(f"    jmp {loop_labels[-1]}  # Bryt")

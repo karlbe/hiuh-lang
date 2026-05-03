@@ -5,6 +5,8 @@ Inkludera src/hitta-var.hiuh
 Inkludera src/alloc-slot.hiuh
 Inkludera src/skriv-reg.hiuh
 
+Deklarera tok som Text
+Deklarera reg_next som Heltal
 
 . Söker igenom input_buf och tar bort avslutande komma om det finns.
 . Sätter has_comma_buf[0]=1 om komma hittades, annars 0.
@@ -1404,6 +1406,28 @@ Funktion hantera med tok är Text, reg_next
     Om tok är texten EXIT
         SkrivNyRad xor %ecx, %ecx
         SkrivNyRad call exit
+        ge reg_next
+    Hejdå
+    Om tok är texten DECLARE
+        . Deklarera x som Text/Heltal → .bss entry
+        . Token stream: DECLARE <name> som <type>
+        Läs                         . name → input_buf
+        KopieraBuffer input_buf till ord_buf
+        Läs                         . som → discard
+        Läs                         . type → input_buf
+        Sätt träff till Jämför input_buf med Text
+        Om träff är 1
+            SkrivNyRad .bss
+            Skriv text i ord_buf
+            SkrivNyRad : .skip 256
+            SkrivNyRad .text
+            ge reg_next
+        Hejdå
+        . else Heltal
+        SkrivNyRad .bss
+        Skriv text i ord_buf
+        SkrivNyRad : .skip 8
+        SkrivNyRad .text
         ge reg_next
     Hejdå
     ge reg_next

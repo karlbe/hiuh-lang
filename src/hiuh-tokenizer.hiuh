@@ -83,6 +83,12 @@ Funktion emit_word med antal
         Öka antal
         ge antal
     Hejdå
+    Sätt träff till Jämför ord_buf med "Deklarera"
+    Om träff är 1
+        SkrivNyRad DECLARE
+        Öka antal
+        ge antal
+    Hejdå
     Sätt träff till Jämför ord_buf med "Sålänge"
     Om träff är 1
         SkrivNyRad SALANGES
