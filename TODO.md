@@ -55,15 +55,17 @@ Data-sektionen emitteras alltid i main-epilogen (oavsett om EXIT används).
 ## Nästa steg (i prioritetsordning)
 
 1. ✅ **All 31/31 pipeline tests passing** — Variable-copy handling fixed
-2. **B5: LAS_FIL i parsern** — BLOCKERAR ALLT!
-   - Parser-generated kod kan inte läsa filer → Inkludera fungerar inte i pipeline
-   - hiuh-parser.hiuh använder Inkludera för att inkludera hitta-var.hiuh, alloc-slot.hiuh, skriv-reg.hiuh
-   - Pipeline-kompilerad parser2.s saknar dessa funktioner → bruten
-   - Python-kompilern har built-in filläsning som åtgärdar detta
-   - FIX: Implementera LAS_FIL i parser (motsvarar HIUH-statements som läser fil)
-3. **Verifiera tokenizer2.exe output** — skiljer sig från Python-version, behöver granska check_skriv argument-handling
-4. **Recompile parser2.s med LAS_FIL-stöd** — eerst after LAS_FIL implemented
-5. **Sluttest** — verify parser2.s == parser3.s (fixpoint for self-hosting)
+2. ✅ **B5: LAS_FIL i parsern** — Already implemented at lines 1356–1402 of src/hiuh-parser.hiuh
+3. ✅ **Deklarera keyword** — Added for explicit global variable declarations
+4. **B6: Global variable handling i pipeline-parser** — NEW BLOCKER!
+   - Parser generates `mov $tok, %rcx` (32-bit absolute) instead of `lea tok(%rip), %rcx` (RIP-relative)
+   - Linker fails with "relocation truncated to fit: R_X86_64_32S" on parser2.s
+   - Root cause: ANROPA handler doesn't know `tok`/`reg_next` are globals needing `lea` treatment
+   - `hitta_var` only checks function parameters (vname0-5), not global buffers
+   - FIX: Parser needs type-awareness for globals OR special handling in ANROPA for unresolved args
+   - Temporary workaround: register `tok`/`reg_next` in vname buffers so hitta_var finds them
+5. **Verifiera tokenizer2.exe output** — After B6 fixed, compile tokenizer2.s and verify output
+6. **Sluttest** — verify parser2.s == parser3.s (fixpoint for self-hosting)
 
 ---
 
