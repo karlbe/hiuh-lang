@@ -7,6 +7,7 @@ Inkludera src/skriv-reg.hiuh
 
 Deklarera tok som Text
 Deklarera reg_next som Heltal
+Deklarera l1_emitted som Heltal
 
 . Söker igenom input_buf och tar bort avslutande komma om det finns.
 . Sätter has_comma_buf[0]=1 om komma hittades, annars 0.
@@ -1344,8 +1345,7 @@ Funktion hantera med tok är Text, reg_next
         Sätt label_nr till Anropa las_label_nr
         Anropa lagra_done_label med label_nr
         Öka label_nr
-        . Allokera over-label och emittera hopp förbi funktionskoden
-        SkrivNyRad     jmp L och label_nr
+        . Allokera over-label (don't emit jmp here - using global jmp L1 in main prologue)
         Anropa lagra_over_label med label_nr
         Öka label_nr
         Anropa lagra_label_nr med label_nr
@@ -1452,9 +1452,6 @@ Funktion hantera med tok är Text, reg_next
         Hejdå
 
         . reg_next är redan återställt av END-hanteraren
-        . Emittera over-label (landing after jmp-over)
-        Sätt label_nr till Anropa las_over_label
-        SkrivNyRad L och label_nr och :
         ge reg_next
     Hejdå
     Om tok är texten GE
@@ -1605,44 +1602,23 @@ SkrivNyRad push %rbp
 SkrivNyRad subq $32, %rsp
 SkrivNyRad mov $65001, %ecx
 SkrivNyRad call SetConsoleOutputCP
+SkrivNyRad jmp L1
 
 Lagra 0 vid 0 i block_depth
 
 Läs till tok
 Sålänge tok inte är tom
+    Sätt idx till tecken 0 ur l1_emitted
+    Om idx är 0
+        Sätt idx till Jämför tok med FUNKTION
+        Om idx inte är 1
+            SkrivNyRad L1:
+            Lagra 1 vid 0 i l1_emitted
+        Hejdå
+    Hejdå
     Sätt reg_next till Anropa hantera med tok, reg_next
     Läs till tok
 Hejdå
-SkrivNyRad xor %ecx, %ecx
-SkrivNyRad call exit
-SkrivNyRad .data
-SkrivNyRad fmt_int: .byte 37,108,108,100,10,0
-SkrivNyRad fmt_int_nonl: .byte 37,108,108,100,0
-SkrivNyRad fmt_s: .byte 37,115,0
-SkrivNyRad input_buf: .space 256
-SkrivNyRad tok_name_buf: .space 256
-SkrivNyRad vname0: .skip 256
-SkrivNyRad vname1: .skip 256
-SkrivNyRad vname2: .skip 256
-SkrivNyRad vname3: .skip 256
-SkrivNyRad vname4: .skip 256
-SkrivNyRad vname5: .skip 256
-SkrivNyRad func_mode_buf: .skip 256
-SkrivNyRad label_buf: .skip 256
-SkrivNyRad block_buf: .skip 256
-SkrivNyRad func_done_label_buf: .skip 256
-SkrivNyRad func_over_label_buf: .skip 256
-SkrivNyRad saved_reg_next_buf: .skip 256
-SkrivNyRad has_comma_buf: .skip 256
-SkrivNyRad for_reg_buf: .skip 256
-SkrivNyRad tok_buf: .space 256
-SkrivNyRad rad_buf: .space 256
-SkrivNyRad ord_buf: .space 256
-SkrivNyRad _hiuh_incl_mode: .byte 114,98,0
-SkrivNyRad _hiuh_incl_pos: .skip 8
-SkrivNyRad _hiuh_incl_end: .skip 8
-SkrivNyRad _hiuh_incl_fp: .skip 8
-SkrivNyRad _hiuh_incl_buf: .skip 65537
 SkrivNyRad block_stack: .space 8
 SkrivNyRad skip_label_stack_lo: .space 8
 SkrivNyRad skip_label_stack_hi: .space 8

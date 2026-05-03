@@ -739,6 +739,7 @@ def compile_to_asm(stmts, target='linux'):
     named_buffers = set()
     var_types = {}        # varname -> 'Heltal' | 'Text'
     text_bufs = {}        # varname -> buffer label (_text_N)
+    heltal_bufs = []      # list of Heltal variable names to emit
     next_text_buf = [0]
     skriv_buf_used = [False]
     fmt_s_used = [False]       # "%s" format string for no-newline printf
@@ -1435,6 +1436,7 @@ def compile_to_asm(stmts, target='linux'):
                 var_types[name] = 'Text'
             elif typ == 'Heltal' and name not in var_types:
                 var_types[name] = 'Heltal'
+                heltal_bufs.append(name)
 
         elif op == 'BREAK':
             if loop_labels:
@@ -1697,7 +1699,7 @@ def compile_to_asm(stmts, target='linux'):
         elif op == 'LAS_FIL':
             # LäsFil text i buf — open file, fread into _hiuh_incl_buf
             buf = stmt[1]
-            if buf not in ('input_buf', 'ord_buf'):
+            if buf not in ('input_buf', 'ord_buf') and buf not in var_types:
                 named_buffers.add(buf)
             lbl_fil_done = new_label()
             if target == 'windows':
@@ -1833,7 +1835,7 @@ def compile_to_asm(stmts, target='linux'):
         
         elif op == 'CMP_BUF_LIT':
             target_var, buf_name, literal = stmt[1], stmt[2], stmt[3]
-            if buf_name != 'input_buf':
+            if buf_name != 'input_buf' and buf_name not in var_types:
                 named_buffers.add(buf_name)
             lit_strings.append(literal)
             lit_idx = len(lit_strings) - 1
@@ -1876,8 +1878,10 @@ def compile_to_asm(stmts, target='linux'):
 
         elif op == 'CMP_BUF_BUF':
             target_var, buf1, buf2 = stmt[1], stmt[2], stmt[3]
-            named_buffers.add(buf1)
-            named_buffers.add(buf2)
+            if buf1 not in var_types:
+                named_buffers.add(buf1)
+            if buf2 not in var_types:
+                named_buffers.add(buf2)
             träff_reg = alloc_var(target_var)
             if target == 'windows':
                 to_save, align_pad = win_call_save(exclude=träff_reg)
@@ -1916,7 +1920,8 @@ def compile_to_asm(stmts, target='linux'):
 
         elif op == 'STORE_CHAR':
             char_var, idx_var, buf_name = stmt[1], stmt[2], stmt[3]
-            named_buffers.add(buf_name)
+            if buf_name not in var_types:
+                named_buffers.add(buf_name)
             char_reg = resolve(char_var)
             if char_reg.startswith('$'):
                 code.append(f"    mov {char_reg}, %rax")
@@ -1936,9 +1941,9 @@ def compile_to_asm(stmts, target='linux'):
 
         elif op == 'COPY_BUF':
             dest, src = stmt[1], stmt[2]
-            if dest != 'input_buf':
+            if dest != 'input_buf' and dest not in var_types:
                 named_buffers.add(dest)
-            if src != 'input_buf':
+            if src != 'input_buf' and src not in var_types:
                 named_buffers.add(src)
             if target == 'windows':
                 to_save, align_pad = win_call_save()
@@ -1963,7 +1968,8 @@ def compile_to_asm(stmts, target='linux'):
 
         elif op == 'SKRIV_BUF_NL':
             buf_name = stmt[1]
-            named_buffers.add(buf_name)
+            if buf_name not in var_types:
+                named_buffers.add(buf_name)
             if target == 'windows':
                 to_save, align_pad = win_call_save()
                 code.append(f"    lea {buf_name}(%rip), %rcx")
@@ -1992,7 +1998,8 @@ def compile_to_asm(stmts, target='linux'):
 
         elif op == 'SKRIV_BUF':
             buf_name = stmt[1]
-            named_buffers.add(buf_name)
+            if buf_name not in var_types:
+                named_buffers.add(buf_name)
             fmt_s_used[0] = True
             if target == 'windows':
                 to_save, align_pad = win_call_save()
@@ -2018,7 +2025,7 @@ def compile_to_asm(stmts, target='linux'):
         elif op == 'CHAR_AT':
             idx, src_buf = stmt[1], stmt[2]
             buf = src_buf if src_buf else 'input_buf'
-            if buf != 'input_buf':
+            if buf != 'input_buf' and buf not in var_types:
                 named_buffers.add(buf)
             if idx in var_reg:
                 code.append(f"    mov {var_reg[idx]}, %rcx  # index")
@@ -2078,10 +2085,12 @@ def compile_to_asm(stmts, target='linux'):
     data.append("input_buf: .skip 256")
     data.append("_hiuh_incl_mode: .asciz \"r\"")
     for buf in sorted(named_buffers):
-        if buf not in ('input_buf', '_hiuh_incl_buf'):
+        if buf not in ('input_buf', '_hiuh_incl_buf') and buf not in text_bufs:
             data.append(f"{buf}: .skip 256")
     for buf in sorted(text_bufs.values()):
         data.append(f"{buf}: .skip 256")
+    for buf in sorted(heltal_bufs):
+        data.append(f"{buf}: .byte 0")
     if target == 'linux' and skriv_buf_used[0]:
         data.append('_nl: .ascii "\\n"')
     data.append(".bss")
