@@ -57,15 +57,18 @@ Data-sektionen emitteras alltid i main-epilogen (oavsett om EXIT används).
 1. ✅ **All 31/31 pipeline tests passing** — Variable-copy handling fixed
 2. ✅ **B5: LAS_FIL i parsern** — Already implemented at lines 1356–1402 of src/hiuh-parser.hiuh
 3. ✅ **Deklarera keyword** — Added for explicit global variable declarations
-4. **B6: Global variable handling i pipeline-parser** — NEW BLOCKER!
-   - Parser generates `mov $tok, %rcx` (32-bit absolute) instead of `lea tok(%rip), %rcx` (RIP-relative)
-   - Linker fails with "relocation truncated to fit: R_X86_64_32S" on parser2.s
-   - Root cause: ANROPA handler doesn't know `tok`/`reg_next` are globals needing `lea` treatment
-   - `hitta_var` only checks function parameters (vname0-5), not global buffers
-   - FIX: Parser needs type-awareness for globals OR special handling in ANROPA for unresolved args
-   - Temporary workaround: register `tok`/`reg_next` in vname buffers so hitta_var finds them
-5. **Verifiera tokenizer2.exe output** — After B6 fixed, compile tokenizer2.s and verify output
-6. **Sluttest** — verify parser2.s == parser3.s (fixpoint for self-hosting)
+4. ✅ **B6: Global variable handling i pipeline-parser** — FIXED
+   - Implemented Rust-style globals table with runtime lookup
+   - ANROPA handler now emits `lea name(%rip), %rcx` for Text globals, `mov name(%rip), %rcx` for Heltal
+   - GE and ANROPA_RES handlers also fixed
+5. ✅ **Parser2.exe self-hosts** — parser2.exe links successfully, all 31 tests pass
+6. **B7: tokenizer2.exe hangs — NEW BLOCKER!**
+   - Pipeline: `hiuh-tokenizer.exe < src/hiuh-tokenizer.hiuh | hiuh-parser.exe > tokenizer2.s` completes (38KB asm)
+   - Assemble + link succeeds → tokenizer2.exe created
+   - But tokenizer2.exe hangs when executed on any input (even single line "Sätt x till 5")
+   - Root cause: unknown bug in parser's code generation for tokenizer source (likely infinite loop in generated assembly)
+   - Fix strategy: Debug tokenizer2.s assembly to find infinite loop; likely issue with state machine or loop condition
+7. **Fixpoint test** — After tokenizer2.exe works, verify parser3.s == parser2.s (parser compiles itself identically)
 
 ---
 
