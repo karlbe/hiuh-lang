@@ -268,3 +268,22 @@ hiuh-tokenizer.exe < source.hiuh
 before the full pipeline. Wrong tokens (e.g. `pluss` instead of `PLUS`) point to a
 tokenizer or compiler bug, not a parser logic bug. The token stream is the boundary
 between the two halves.
+
+## Global variable declarations in HIUH code
+
+HIUH has an explicit `Deklarera` keyword for declaring global buffers (Text) and integers (Heltal) before use. This is required for self-hosting:
+
+```hiuh
+Deklarera tok som Text         . Declare a Text global (256 bytes in .bss)
+Deklarera reg_next som Heltal  . Declare an integer global (8 bytes in .bss)
+```
+
+**Rules:**
+- All `Deklarera` statements must appear **before** the first `Funktion` definition
+- The Python compiler (`hiuh-native.py`) auto-tracks globals via `var_types` dict
+- The self-hosted parser uses a runtime globals table (`gn0..gn7`, `gt0..gt7`) to track declared names and types
+- When a global is passed as an argument to `Anropa`, the parser emits the correct load instruction:
+  - Text global: `lea name(%rip), %rCX`
+  - Heltal global: `mov name(%rip), %rCX`
+
+This avoids the linker error "relocation truncated to fit: R_X86_64_32S" that would occur from incorrect 32-bit absolute addressing (`mov $name, %rCX`).

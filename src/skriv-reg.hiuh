@@ -213,3 +213,21 @@ Funktion skriv_reg_rdx med idx
     SkrivNyRad mov %r11, %rdx
     ge 0
 Hejdå
+
+. Skriver (%rip), %rcx\n / (%rip), %rdx\n / (%rip), %r8\n / (%rip), %r9\n baserat på argumentindex 0-3
+Funktion skriv_rip_arg_reg_nl med idx
+    Om idx är 0
+        SkrivNyRad (%rip), %rcx
+        ge 0
+    Hejdå
+    Om idx är 1
+        SkrivNyRad (%rip), %rdx
+        ge 0
+    Hejdå
+    Om idx är 2
+        SkrivNyRad (%rip), %r8
+        ge 0
+    Hejdå
+    SkrivNyRad (%rip), %r9
+    ge 0
+Hejdå

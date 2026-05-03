@@ -143,6 +143,185 @@ Funktion las_skip_label med idx
     ge lo
 Hejdå
 
+. Lagrar input_buf som globalt namn i gn{num}
+Funktion store_global_name med num
+    Om num är 0
+        KopieraBuffer input_buf till gn0
+        ge 0
+    Hejdå
+    Om num är 1
+        KopieraBuffer input_buf till gn1
+        ge 0
+    Hejdå
+    Om num är 2
+        KopieraBuffer input_buf till gn2
+        ge 0
+    Hejdå
+    Om num är 3
+        KopieraBuffer input_buf till gn3
+        ge 0
+    Hejdå
+    Om num är 4
+        KopieraBuffer input_buf till gn4
+        ge 0
+    Hejdå
+    Om num är 5
+        KopieraBuffer input_buf till gn5
+        ge 0
+    Hejdå
+    Om num är 6
+        KopieraBuffer input_buf till gn6
+        ge 0
+    Hejdå
+    KopieraBuffer input_buf till gn7
+    ge 0
+Hejdå
+
+. Lagrar typ (1=Text, 0=Heltal) för global nummer num
+Funktion store_global_typ med num, typ
+    Om num är 0
+        Lagra typ vid 0 i gt0
+        ge 0
+    Hejdå
+    Om num är 1
+        Lagra typ vid 0 i gt1
+        ge 0
+    Hejdå
+    Om num är 2
+        Lagra typ vid 0 i gt2
+        ge 0
+    Hejdå
+    Om num är 3
+        Lagra typ vid 0 i gt3
+        ge 0
+    Hejdå
+    Om num är 4
+        Lagra typ vid 0 i gt4
+        ge 0
+    Hejdå
+    Om num är 5
+        Lagra typ vid 0 i gt5
+        ge 0
+    Hejdå
+    Om num är 6
+        Lagra typ vid 0 i gt6
+        ge 0
+    Hejdå
+    Lagra typ vid 0 i gt7
+    ge 0
+Hejdå
+
+. Söker input_buf mot gn0..gn7. Returnerar typ (1=Text, 0=Heltal) eller 99 om inte funnen.
+Funktion hitta_global_typ
+    Sätt träff till JämförBuffer input_buf med gn0
+    Om träff är 1
+        Sätt träff till tecken 0 ur gt0
+        ge träff
+    Hejdå
+    Sätt träff till JämförBuffer input_buf med gn1
+    Om träff är 1
+        Sätt träff till tecken 0 ur gt1
+        ge träff
+    Hejdå
+    Sätt träff till JämförBuffer input_buf med gn2
+    Om träff är 1
+        Sätt träff till tecken 0 ur gt2
+        ge träff
+    Hejdå
+    Sätt träff till JämförBuffer input_buf med gn3
+    Om träff är 1
+        Sätt träff till tecken 0 ur gt3
+        ge träff
+    Hejdå
+    Sätt träff till JämförBuffer input_buf med gn4
+    Om träff är 1
+        Sätt träff till tecken 0 ur gt4
+        ge träff
+    Hejdå
+    Sätt träff till JämförBuffer input_buf med gn5
+    Om träff är 1
+        Sätt träff till tecken 0 ur gt5
+        ge träff
+    Hejdå
+    Sätt träff till JämförBuffer input_buf med gn6
+    Om träff är 1
+        Sätt träff till tecken 0 ur gt6
+        ge träff
+    Hejdå
+    Sätt träff till JämförBuffer input_buf med gn7
+    Om träff är 1
+        Sätt träff till tecken 0 ur gt7
+        ge träff
+    Hejdå
+    ge 99
+Hejdå
+
+. Emitterar rätt lastinstruktion för input_buf som returvärde i %rax.
+. Kontrollerar lokala variabler, sedan globaler, sedan literaler.
+Funktion emit_ge_val
+    Sätt idx till Anropa hitta_var
+    Om idx inte är 99
+        Skriv     mov 
+        Anropa skriv_reg med idx
+        SkrivNyRad , %rax
+        ge 0
+    Hejdå
+    Sätt idx till Anropa hitta_global_typ
+    Om idx är 1
+        . Text global: lea name(%rip), %rax
+        Skriv     lea 
+        Skriv text i input_buf
+        SkrivNyRad (%rip), %rax
+        ge 0
+    Hejdå
+    Om idx är 0
+        . Heltal global: mov name(%rip), %rax
+        Skriv     mov 
+        Skriv text i input_buf
+        SkrivNyRad (%rip), %rax
+        ge 0
+    Hejdå
+    . Literal integer or symbol
+    Skriv     mov $
+    Skriv text i input_buf
+    SkrivNyRad , %rax
+    ge 0
+Hejdå
+
+. Emitterar rätt lastinstruktion för input_buf som argument nummer arg_idx (0-3).
+. Kontrollerar lokala variabler via hitta_var, sedan globaler via hitta_global_typ.
+. Emitterar: mov %rReg, %argReg  /  lea name(%rip), %argReg  /  mov name(%rip), %argReg  /  mov $name, %argReg
+Funktion emit_anropa_arg med arg_idx
+    Sätt idx till Anropa hitta_var
+    Om idx inte är 99
+        Skriv     mov 
+        Anropa skriv_reg med idx
+        Anropa skriv_komma_arg_reg_nl med arg_idx
+        ge 0
+    Hejdå
+    . Not a local — check globals table
+    Sätt idx till Anropa hitta_global_typ
+    Om idx är 1
+        . Text global: lea name(%rip), %argN
+        Skriv     lea 
+        Skriv text i input_buf
+        Anropa skriv_rip_arg_reg_nl med arg_idx
+        ge 0
+    Hejdå
+    Om idx är 0
+        . Heltal global: mov name(%rip), %argN
+        Skriv     mov 
+        Skriv text i input_buf
+        Anropa skriv_rip_arg_reg_nl med arg_idx
+        ge 0
+    Hejdå
+    . Unknown — treat as literal/symbol: mov $name, %argN
+    Skriv     mov $
+    Skriv text i input_buf
+    Anropa skriv_komma_arg_reg_nl med arg_idx
+    ge 0
+Hejdå
+
 . Dispatchfunktion — hanterar ett instruktionstoken
 . Returnerar (möjligen uppdaterat) reg_next
 Funktion hantera med tok är Text, reg_next
@@ -288,16 +467,7 @@ Funktion hantera med tok är Text, reg_next
                 Sätt idx2 till 0   . arg counter
                 Sätt träff till 1  . do-while enter
                 Sålänge träff är 1
-                    Sätt idx3 till Anropa hitta_var
-                    Om idx3 är 99
-                        Skriv     mov $ och text i input_buf
-                        Anropa skriv_komma_arg_reg_nl med idx2
-                    Hejdå
-                    Om idx3 inte är 99
-                        Skriv     mov 
-                        Anropa skriv_reg med idx3
-                        Anropa skriv_komma_arg_reg_nl med idx2
-                    Hejdå
+                    Anropa emit_anropa_arg med idx2
                     Öka idx2
                     Sätt träff till tecken 0 ur has_comma_buf
                     Om träff är 1
@@ -1290,18 +1460,8 @@ Funktion hantera med tok är Text, reg_next
     Om tok är texten GE
         . ge <värde> → returnera från funktion
         Läs                        . returvärde
-        Sätt idx till Anropa hitta_var
         Sätt label_nr till Anropa las_done_label
-        Om idx är 99
-            Skriv     mov $
-            Skriv text i input_buf
-            SkrivNyRad , %rax
-        Hejdå
-        Om idx inte är 99
-            Skriv     mov 
-            Anropa skriv_reg med idx
-            SkrivNyRad , %rax
-        Hejdå
+        Anropa emit_ge_val
         SkrivNyRad     jmp L och label_nr
         ge reg_next
     Hejdå
@@ -1323,17 +1483,7 @@ Funktion hantera med tok är Text, reg_next
             Sätt idx2 till 0       . argumenträknare
             Sätt träff till 1      . do-while enter
             Sålänge träff är 1
-                Sätt idx till Anropa hitta_var
-                Om idx är 99
-                    Skriv     mov $
-                    Skriv text i input_buf
-                    Anropa skriv_komma_arg_reg_nl med idx2
-                Hejdå
-                Om idx inte är 99
-                    Skriv     mov 
-                    Anropa skriv_reg med idx
-                    Anropa skriv_komma_arg_reg_nl med idx2
-                Hejdå
+                Anropa emit_anropa_arg med idx2
                 Öka idx2
                 Sätt träff till tecken 0 ur has_comma_buf
                 Om träff är 1
@@ -1409,14 +1559,19 @@ Funktion hantera med tok är Text, reg_next
         ge reg_next
     Hejdå
     Om tok är texten DECLARE
-        . Deklarera x som Text/Heltal → .bss entry
+        . Deklarera x som Text/Heltal → .bss entry + globals tabell
         . Token stream: DECLARE <name> som <type>
         Läs                         . name → input_buf
         KopieraBuffer input_buf till ord_buf
+        Sätt idx till tecken 0 ur ngbuf    . num_globals
+        Anropa store_global_name med idx
         Läs                         . som → discard
         Läs                         . type → input_buf
         Sätt träff till Jämför input_buf med Text
         Om träff är 1
+            Anropa store_global_typ med idx, 1
+            Öka idx
+            Lagra idx vid 0 i ngbuf
             SkrivNyRad .bss
             Skriv text i ord_buf
             SkrivNyRad : .skip 256
@@ -1424,6 +1579,9 @@ Funktion hantera med tok är Text, reg_next
             ge reg_next
         Hejdå
         . else Heltal
+        Anropa store_global_typ med idx, 0
+        Öka idx
+        Lagra idx vid 0 i ngbuf
         SkrivNyRad .bss
         Skriv text i ord_buf
         SkrivNyRad : .skip 8
@@ -1492,3 +1650,20 @@ SkrivNyRad loop_top_stack_lo: .space 8
 SkrivNyRad loop_top_stack_hi: .space 8
 SkrivNyRad block_depth: .space 1
 SkrivNyRad skriv_handled_buf: .space 1
+SkrivNyRad ngbuf: .byte 0
+SkrivNyRad gt0: .byte 0
+SkrivNyRad gt1: .byte 0
+SkrivNyRad gt2: .byte 0
+SkrivNyRad gt3: .byte 0
+SkrivNyRad gt4: .byte 0
+SkrivNyRad gt5: .byte 0
+SkrivNyRad gt6: .byte 0
+SkrivNyRad gt7: .byte 0
+SkrivNyRad gn0: .skip 64
+SkrivNyRad gn1: .skip 64
+SkrivNyRad gn2: .skip 64
+SkrivNyRad gn3: .skip 64
+SkrivNyRad gn4: .skip 64
+SkrivNyRad gn5: .skip 64
+SkrivNyRad gn6: .skip 64
+SkrivNyRad gn7: .skip 64
