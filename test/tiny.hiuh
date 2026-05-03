@@ -1,0 +1,8 @@
+Funktion hitta_var
+    Sätt vi till 0
+    Sätt hm till JämförBuffer input_buf med vname0
+    Om hm är 1
+        ge vi
+    Hejdå
+    ge 99
+Hejdå

@@ -1,0 +1,16 @@
+. Minimal test: function definition followed by main loop
+. Should generate: main prologue, jmp L1, func, L1: loop code
+. Bug: generates main code before L1, returns prematurely
+
+Funktion simple med x
+    SkrivNyRad test
+    ge x
+Hejdå
+
+. Main program: simple loop
+Sätt x till 0
+Sålänge x är mindre än 3
+    SkrivNyRad loop
+    Öka x
+Hejdå
+SkrivNyRad done

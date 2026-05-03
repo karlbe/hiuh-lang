@@ -1,9 +1,0 @@
-.text
-.globl main
-main:
-push %r12
-push %r13
-push %rbp
-subq $32, %rsp
-mov $65001, %ecx
-call SetConsoleOutputCP

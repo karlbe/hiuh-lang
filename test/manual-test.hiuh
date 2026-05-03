@@ -1,0 +1,8 @@
+. hitta-var.hiuh — symboltabellsuppslag
+. Slår upp input_buf i vname0..vname5
+. Returnerar 0-5 om hittad, 99 om ej hittad
+
+Funktion hitta_var
+    Sätt vi till 0
+    ge 99
+Hejdå
