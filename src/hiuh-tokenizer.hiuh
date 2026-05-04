@@ -1,9 +1,9 @@
-. hiuh-tokenizer.hiuh — tokenizes HIUH source, one token per line
-. Pipeline: hiuh-tokenizer.exe < source.hiuh | hiuh-parser.exe > out.s
+... hiuh-tokenizer.hiuh — tokenizes HIUH source, one token per line
+... Pipeline: hiuh-tokenizer.exe < source.hiuh | hiuh-parser.exe > out.s
 
-. Keyword dispatch — uses early ge to avoid cascade, handles identifier fallback
-. Takes antal (token count so far), returns antal+1
-. Inkludera is handled at the line level in check_skriv — NOT here.
+... Keyword dispatch — uses early ge to avoid cascade, handles identifier fallback
+... Takes antal (token count so far), returns antal+1
+... Inkludera is handled at the line level in check_skriv — NOT here.
 Funktion emit_word med antal
     Sätt träff till Jämför ord_buf med "Sätt"
     Om träff är 1
@@ -275,14 +275,44 @@ Funktion emit_word med antal
         Öka antal
         ge antal
     Hejdå
-    . Not a keyword — emit as identifier
+    Sätt träff till Jämför ord_buf med "Slåihop"
+    Om träff är 1
+        SkrivNyRad STRCAT
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med "RensaBuffer"
+    Om träff är 1
+        SkrivNyRad BUFCLEAR
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med "LäsAllt"
+    Om träff är 1
+        SkrivNyRad READALL
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med "SpolaBuffer"
+    Om träff är 1
+        SkrivNyRad BUFFLUSH
+        Öka antal
+        ge antal
+    Hejdå
+    Sätt träff till Jämför ord_buf med "Hitta"
+    Om träff är 1
+        SkrivNyRad HITTA
+        Öka antal
+        ge antal
+    Hejdå
+    ... Not a keyword — emit as identifier
     SkrivNyRad text i ord_buf
     Öka antal
     ge antal
 Hejdå
 
-. Strips inline comments from input_buf.
-. A dot preceded by space (or at position 0) starts a comment — writes 0 there.
+... Strips inline comments from input_buf.
+... Three consecutive dots preceded by space (or at position 0) starts a comment.
 Funktion strip_inline_comment
     Sätt i till 0
     Sätt prev till 32
@@ -290,8 +320,16 @@ Funktion strip_inline_comment
     Sålänge ch inte är 0
         Om ch är 46
             Om prev är 32
-                Lagra 0 vid i i input_buf
-                ge 0
+                Sätt next1 till i pluss 1
+                Sätt ch2 till tecken next1 ur input_buf
+                Om ch2 är 46
+                    Öka next1
+                    Sätt ch2 till tecken next1 ur input_buf
+                    Om ch2 är 46
+                        Lagra 0 vid i i input_buf
+                        ge 0
+                    Hejdå
+                Hejdå
             Hejdå
         Hejdå
         Sätt prev till ch
@@ -301,11 +339,11 @@ Funktion strip_inline_comment
     ge 0
 Hejdå
 
-. Handles Skriv/SkrivNyRad lines: emits token + argument without re-tokenizing.
-. Sets skriv_handled_buf[0]=1 if line was handled (caller skips char loop).
-. Returns updated antal.
+... Handles Skriv/SkrivNyRad lines: emits token + argument without re-tokenizing.
+... Sets skriv_handled_buf[0]=1 if line was handled (caller skips char loop).
+... Returns updated antal.
 Funktion handle_inkludera med antal
-    . Read first word into ord_buf
+    ... Read first word into ord_buf
     Sätt i till 0
     Sätt j till 0
     Sätt ch till tecken i ur input_buf
@@ -319,12 +357,12 @@ Funktion handle_inkludera med antal
         Sätt ch till tecken i ur input_buf
     Hejdå
     Lagra 0 vid j i ord_buf
-    . Check for Inkludera at line start
+    ... Check for Inkludera at line start
     Sätt träff till Jämför ord_buf med Inkludera
     Om träff inte är 1
         ge antal
     Hejdå
-    . Skip whitespace after Inkludera
+    ... Skip whitespace after Inkludera
     Sålänge ch inte är 0
         Om ch är större än 32
             Bryt
@@ -332,7 +370,7 @@ Funktion handle_inkludera med antal
         Öka i
         Sätt ch till tecken i ur input_buf
     Hejdå
-    . Read filename into ord_buf
+    ... Read filename into ord_buf
     Sätt j till 0
     Sålänge ch inte är 0
         Om ch är mindre än 33
@@ -350,7 +388,7 @@ Funktion handle_inkludera med antal
 Hejdå
 
 Funktion handle_skriv med antal
-    . Read first word into ord_buf
+    ... Read first word into ord_buf
     Sätt i till 0
     Sätt j till 0
     Sätt ch till tecken i ur input_buf
@@ -364,7 +402,7 @@ Funktion handle_skriv med antal
         Sätt ch till tecken i ur input_buf
     Hejdå
     Lagra 0 vid j i ord_buf
-    . Check for Skriv/SkrivNyRad
+    ... Check for Skriv/SkrivNyRad
     Sätt is_nl till Jämför ord_buf med "SkrivNyRad"
     Sätt match till Jämför ord_buf med "Skriv"
     Om is_nl är 0
@@ -380,7 +418,7 @@ Funktion handle_skriv med antal
         SkrivNyRad SKRIV
         Öka antal
     Hejdå
-    . Skip whitespace after keyword
+    ... Skip whitespace after keyword
     Sålänge ch inte är 0
         Om ch är större än 32
             Bryt
@@ -392,7 +430,7 @@ Funktion handle_skriv med antal
         Lagra 1 vid 0 i skriv_handled_buf
         ge antal
     Hejdå
-    . Read argument word into ord_buf
+    ... Read argument word into ord_buf
     Sätt j till 0
     Sålänge ch inte är 0
         Om ch är mindre än 33
@@ -404,7 +442,7 @@ Funktion handle_skriv med antal
         Sätt ch till tecken i ur input_buf
     Hejdå
     Lagra 0 vid j i ord_buf
-    . "text" → TEXT I bufname
+    ... "text" → TEXT I bufname
     Sätt match till Jämför ord_buf med text
     Om match är 1
         SkrivNyRad TEXT
@@ -416,7 +454,7 @@ Funktion handle_skriv med antal
             Öka i
             Sätt ch till tecken i ur input_buf
         Hejdå
-        . consume "i" word
+        ... consume "i" word
         Sålänge ch inte är 0
             Om ch är mindre än 33
                 Bryt
@@ -449,7 +487,7 @@ Funktion handle_skriv med antal
         Lagra 1 vid 0 i skriv_handled_buf
         ge antal
     Hejdå
-    . "värdet" → VARDET AV varname
+    ... "värdet" → VARDET AV varname
     Sätt match till Jämför ord_buf med värdet
     Om match är 1
         SkrivNyRad VARDET
@@ -461,7 +499,7 @@ Funktion handle_skriv med antal
             Öka i
             Sätt ch till tecken i ur input_buf
         Hejdå
-        . consume "av" word
+        ... consume "av" word
         Sålänge ch inte är 0
             Om ch är mindre än 33
                 Bryt
@@ -494,7 +532,7 @@ Funktion handle_skriv med antal
         Lagra 1 vid 0 i skriv_handled_buf
         ge antal
     Hejdå
-    . Raw string: append rest of line (spaces + remaining chars) to ord_buf
+    ... Raw string: append rest of line (spaces + remaining chars) to ord_buf
     Sålänge ch inte är 0
         Lagra ch vid j i ord_buf
         Öka j
@@ -508,8 +546,8 @@ Funktion handle_skriv med antal
     ge antal
 Hejdå
 
-. --- Huvudprogram ---
-. Variabler (7 max): antal, j, i_ord, klar, rad, i (for), tecken (for)
+... --- Huvudprogram ---
+... Variabler (7 max): antal, j, i_ord, klar, rad, i (for), tecken (for)
 Sätt antal till 0
 Sätt j till 0
 Sätt i_ord till 0

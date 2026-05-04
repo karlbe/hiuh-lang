@@ -1,6 +1,6 @@
-. test-text-las.hiuh — testar Sätt x till Läs
-. Stdin: "hallå\n"
-. Förväntad output: hallå
+... test-text-las.hiuh — testar Sätt x till Läs
+... Stdin: "hallå\n"
+... Förväntad output: hallå
 
 Sätt namn till Läs
 SkrivNyRad värdet av namn

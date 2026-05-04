@@ -52,25 +52,25 @@ def tokenize(src):
             continue
         words = stripped.split()
         first = words[0]
-        # Strip inline comments: remove everything from a bare '.' word onward
-        if first != '.':
+        # Strip inline comments: remove everything from a bare '...' word onward
+        if first != '...':
             try:
-                dot_i = words.index('.')
+                dot_i = words.index('...')
                 words = words[:dot_i]
             except ValueError:
                 pass
 
         # Save all non-comment words to ord_lista
-        if first != '.':
+        if first != '...':
             ord_lista.extend(words)
         
         if first in ('Skriv', 'SkrivNyRad'):
             # Preserve trailing spaces: extract raw content after keyword
             raw = line.rstrip('\n\r')
             rest = raw[raw.index(first) + len(first):].lstrip()
-            # Strip inline comment from rest (bare ' . ' word)
-            if ' . ' in rest:
-                rest = rest[:rest.index(' . ')].rstrip()
+            # Strip inline comment from rest (bare ' ... ' word)
+            if ' ... ' in rest:
+                rest = rest[:rest.index(' ... ')].rstrip()
             nl = first == 'SkrivNyRad'
             if rest.startswith('värdet av '):
                 tokens.append(('SKRIV_VAR_NL' if nl else 'SKRIV_VAR', words[-1]))
@@ -125,6 +125,16 @@ def tokenize(src):
                 buf2 = rw[med_i + 1] if med_i + 1 < len(rw) else ''
                 if buf1 and buf2:
                     tokens.append(('CMP_BUF_BUF', var, buf1, buf2))
+            elif rest.startswith('Hitta ') and ' med ' in rest:
+                # Sätt x till Hitta buf med lit
+                rw = rest.split()
+                med_i = rw.index('med')
+                buf = rw[1]
+                lit = rw[med_i + 1] if med_i + 1 < len(rw) else ''
+                if lit.startswith('"') and lit.endswith('"') and len(lit) >= 2:
+                    lit = lit[1:-1]
+                if buf and lit:
+                    tokens.append(('FIND_BUF', var, buf, lit))
             elif 'skifta vänster' in rest:
                 parts = rest.split('skifta vänster', 1)
                 left = parts[0].strip()
@@ -227,6 +237,43 @@ def tokenize(src):
                 buf = words[i_idx + 1] if i_idx + 1 < len(words) else 'input_buf'
                 tokens.append(('LAS_FIL', buf))
 
+        elif first == 'LäsAllt':
+            # LäsAllt text i buf — read all stdin into buffer
+            if 'i' in words:
+                i_idx = words.index('i')
+                buf = words[i_idx + 1] if i_idx + 1 < len(words) else 'input_buf'
+                tokens.append(('READALL', buf))
+
+        elif first == 'SpolaBuffer':
+            # SpolaBuffer text i buf — flush buffer to stdout, then clear
+            if 'i' in words:
+                i_idx = words.index('i')
+                buf = words[i_idx + 1] if i_idx + 1 < len(words) else 'input_buf'
+                tokens.append(('BUFFLUSH', buf))
+
+        elif first == 'RensaBuffer':
+            # RensaBuffer buf — clear buffer (set first byte to 0)
+            buf = words[1] if len(words) >= 2 else 'input_buf'
+            tokens.append(('BUFCLEAR', buf))
+
+        elif first == 'Slåihop':
+            # Slåihop dest med src — concatenate src to end of dest
+            if 'med' in words:
+                med_i = words.index('med')
+                dest = words[1] if med_i > 1 else ''
+                src_raw = ' '.join(words[med_i + 1:]) if med_i + 1 < len(words) else ''
+                src = src_raw.strip()
+                if dest and src:
+                    # Check for special source patterns
+                    if src_raw.startswith('värdet av '):
+                        var = src_raw[len('värdet av '):].strip()
+                        tokens.append(('STRCAT_VAL', dest, var))
+                    elif src_raw.startswith('text i '):
+                        buf = src_raw[len('text i '):].strip()
+                        tokens.append(('STRCAT_BUF', dest, buf))
+                    else:
+                        tokens.append(('STRCAT', dest, src))
+
         elif first == 'tecken':
             # "tecken <index> ur <source>" - get char at index from source
             try:
@@ -274,6 +321,17 @@ def tokenize(src):
                 buf2 = words[med_i + 1] if med_i + 1 < len(words) else ''
                 if buf1 and buf2:
                     tokens.append(('CMP_BUF_BUF', 'träff', buf1, buf2))
+
+        elif first == 'Hitta':
+            # Hitta buf med "pattern" → set träff to position (255 if not found)
+            if 'med' in words:
+                med_i = words.index('med')
+                buf = words[1] if med_i > 1 else ''
+                lit = words[med_i + 1] if med_i + 1 < len(words) else ''
+                if lit.startswith('"') and lit.endswith('"') and len(lit) >= 2:
+                    lit = lit[1:-1]
+                if buf and lit:
+                    tokens.append(('FIND_BUF', 'träff', buf, lit))
 
         elif first == 'Funktion':
             # Real function definition: Funktion foo med t är Text, n är Heltal
@@ -501,7 +559,7 @@ def parse(tokens):
         elif tok[0] == 'STORE_CHAR':
             stmts.append(tok)
             i += 1
-        elif tok[0] in ('CMP_BUF_LIT', 'CMP_BUF_BUF'):
+        elif tok[0] in ('CMP_BUF_LIT', 'CMP_BUF_BUF', 'FIND_BUF'):
             stmts.append(tok)
             i += 1
         elif tok[0] in ('SKRIV_BUF', 'SKRIV_BUF_NL'):
@@ -536,6 +594,9 @@ def parse(tokens):
             stmts.append(tok)
             i += 1
         elif tok[0] == 'COPY_BUF':
+            stmts.append(tok)
+            i += 1
+        elif tok[0] in ('STRCAT', 'STRCAT_VAL', 'STRCAT_BUF', 'BUFCLEAR', 'BUFFLUSH', 'READALL'):
             stmts.append(tok)
             i += 1
         elif tok[0] in ('SET_TEXT_LIT', 'READ_TO_VAR'):
@@ -1851,7 +1912,6 @@ def compile_to_asm(stmts, target='linux'):
                 code.append(f"    movzx %al, %rax")
                 code.append(f"    mov %rax, {träff_reg}  # träff = strcmp result")
             else:
-                # Inline strcmp: rsi=buf, rdi=lit → result in träff_reg
                 lbl_loop = new_label()
                 lbl_ne = new_label()
                 lbl_eq = new_label()
@@ -1875,6 +1935,32 @@ def compile_to_asm(stmts, target='linux'):
                 code.append(f"    xor %rax, %rax")
                 code.append(f"{lbl_done}:")
                 code.append(f"    mov %rax, {träff_reg}  # träff = strcmp result")
+
+        elif op == 'FIND_BUF':
+            target_var, buf_name, literal = stmt[1], stmt[2], stmt[3]
+            if buf_name != 'input_buf' and buf_name not in var_types:
+                named_buffers.add(buf_name)
+            lit_strings.append(literal)
+            lit_idx = len(lit_strings) - 1
+            pos_reg = alloc_var(target_var)
+            if target == 'windows':
+                to_save, align_pad = win_call_save(exclude=pos_reg)
+                code.append(f"    lea {buf_name}(%rip), %rcx")
+                code.append(f"    lea lit_{lit_idx}(%rip), %rdx")
+                code.append(f"    call strstr")
+                code.append(f"    test %rax, %rax")
+                lbl_not_found = new_label()
+                code.append(f"    jz {lbl_not_found}")
+                code.append(f"    lea {buf_name}(%rip), %rcx")
+                code.append(f"    sub %rcx, %rax")
+                win_call_restore(to_save, align_pad)
+                code.append(f"    mov %rax, {pos_reg}  # pos = offset")
+                lbl_done = new_label()
+                code.append(f"    jmp {lbl_done}")
+                code.append(f"{lbl_not_found}:")
+                win_call_restore(to_save, align_pad)
+                code.append(f"    mov $255, {pos_reg}  # not found = 255")
+                code.append(f"{lbl_done}:")
 
         elif op == 'CMP_BUF_BUF':
             target_var, buf1, buf2 = stmt[1], stmt[2], stmt[3]
@@ -1966,35 +2052,96 @@ def compile_to_asm(stmts, target='linux'):
                 code.append(f"    jmp {lbl_loop}")
                 code.append(f"{lbl_done}:")
 
-        elif op == 'SKRIV_BUF_NL':
-            buf_name = stmt[1]
-            if buf_name not in var_types:
-                named_buffers.add(buf_name)
+        elif op == 'STRCAT':
+            dest, src = stmt[1], stmt[2]
+            if dest not in ('input_buf',) and dest not in var_types:
+                named_buffers.add(dest)
+            # Determine if src is a buffer name or a string literal
+            src_is_buf = (src in var_types) or (src in ('input_buf',)) or (src in named_buffers)
+            if not src_is_buf:
+                # Strip quotes if present
+                if src.startswith('"') and src.endswith('"'):
+                    src = src[1:-1]
             if target == 'windows':
                 to_save, align_pad = win_call_save()
-                code.append(f"    lea {buf_name}(%rip), %rcx")
-                code.append(f"    call puts")
+                code.append(f"    lea {dest}(%rip), %rcx")
+                if src_is_buf:
+                    if src not in ('input_buf',) and src not in var_types:
+                        named_buffers.add(src)
+                    code.append(f"    lea {src}(%rip), %rdx")
+                else:
+                    lit_strings.append(src)
+                    lit_idx = len(lit_strings) - 1
+                    code.append(f"    lea lit_{lit_idx}(%rip), %rdx")
+                code.append(f"    call strcat")
                 win_call_restore(to_save, align_pad)
-            else:
-                skriv_buf_used[0] = True
-                lbl_start = new_label()
-                lbl_end = new_label()
-                code.append(f"    lea {buf_name}(%rip), %rsi")
-                code.append(f"    xor %rdx, %rdx")
-                code.append(f"{lbl_start}:")
-                code.append(f"    cmpb $0, (%rsi,%rdx)")
-                code.append(f"    je {lbl_end}")
-                code.append(f"    inc %rdx")
-                code.append(f"    jmp {lbl_start}")
-                code.append(f"{lbl_end}:")
-                code.append(f"    mov $1, %edi")
-                code.append(f"    mov $1, %eax")
-                code.append(f"    syscall")
-                code.append(f"    lea _nl(%rip), %rsi")
-                code.append(f"    mov $1, %rdx")
-                code.append(f"    mov $1, %edi")
-                code.append(f"    mov $1, %eax")
-                code.append(f"    syscall")
+
+        elif op == 'STRCAT_BUF':
+            dest, srcbuf = stmt[1], stmt[2]
+            if dest not in ('input_buf',) and dest not in var_types:
+                named_buffers.add(dest)
+            if srcbuf not in ('input_buf',) and srcbuf not in var_types:
+                named_buffers.add(srcbuf)
+            if target == 'windows':
+                to_save, align_pad = win_call_save()
+                code.append(f"    lea {dest}(%rip), %rcx")
+                code.append(f"    lea {srcbuf}(%rip), %rdx")
+                code.append(f"    call strcat")
+                win_call_restore(to_save, align_pad)
+
+        elif op == 'STRCAT_VAL':
+            dest, var = stmt[1], stmt[2]
+            if dest not in ('input_buf',) and dest not in var_types:
+                named_buffers.add(dest)
+            r = resolve(var)
+            if target == 'windows':
+                to_save, align_pad = win_call_save()
+                code.append(f"    lea num_buf(%rip), %rcx")
+                code.append(f"    lea fmt_int_nonl(%rip), %rdx")  # %lld without \n
+                fmt_int_nonl_used[0] = True
+                code.append(f"    mov {r}, %r8")
+                code.append(f"    call sprintf")
+                code.append(f"    lea {dest}(%rip), %rcx")
+                code.append(f"    lea num_buf(%rip), %rdx")
+                code.append(f"    call strcat")
+                win_call_restore(to_save, align_pad)
+
+        elif op == 'BUFCLEAR':
+            buf = stmt[1]
+            if buf not in ('input_buf',) and buf not in var_types:
+                named_buffers.add(buf)
+            code.append(f"    movb $0, {buf}(%rip)")
+
+        elif op == 'BUFFLUSH':
+            buf = stmt[1]
+            if buf not in ('input_buf',) and buf not in var_types:
+                named_buffers.add(buf)
+            if target == 'windows':
+                to_save, align_pad = win_call_save()
+                code.append(f"    lea {buf}(%rip), %rcx")
+                code.append(f"    call puts")
+                code.append(f"    movb $0, {buf}(%rip)")
+                win_call_restore(to_save, align_pad)
+
+        elif op == 'READALL':
+            buf = stmt[1]
+            if buf not in ('input_buf',) and buf not in var_types:
+                named_buffers.add(buf)
+            if target == 'windows':
+                to_save, align_pad = win_call_save()
+                code.append(f"    mov $0, %ecx")
+                code.append(f"    call __acrt_iob_func")
+                code.append(f"    mov %rax, %r9")
+                code.append(f"    lea {buf}(%rip), %rcx")
+                code.append(f"    mov $1, %edx")
+                code.append(f"    mov $65536, %r8d")
+                code.append(f"    call fread")
+                code.append(f"    lea {buf}(%rip), %rsi")
+                code.append(f"    add %rax, %rsi")
+                code.append(f"    movb $0, (%rsi)  # null-terminate at end of data")
+                code.append(f"    movq $0, _hiuh_incl_pos(%rip)  # reset pos")
+                code.append(f"    mov %rax, _hiuh_incl_end(%rip)  # set length")
+                win_call_restore(to_save, align_pad)
 
         elif op == 'SKRIV_BUF':
             buf_name = stmt[1]
@@ -2006,6 +2153,16 @@ def compile_to_asm(stmts, target='linux'):
                 code.append(f"    lea fmt_s(%rip), %rcx")
                 code.append(f"    lea {buf_name}(%rip), %rdx")
                 code.append(f"    call printf")
+                win_call_restore(to_save, align_pad)
+
+        elif op == 'SKRIV_BUF_NL':
+            buf_name = stmt[1]
+            if buf_name not in var_types:
+                named_buffers.add(buf_name)
+            if target == 'windows':
+                to_save, align_pad = win_call_save()
+                code.append(f"    lea {buf_name}(%rip), %rcx")
+                code.append(f"    call puts")
                 win_call_restore(to_save, align_pad)
             else:
                 lbl_start = new_label()
@@ -2085,7 +2242,7 @@ def compile_to_asm(stmts, target='linux'):
     data.append("input_buf: .skip 256")
     data.append("_hiuh_incl_mode: .asciz \"r\"")
     for buf in sorted(named_buffers):
-        if buf not in ('input_buf', '_hiuh_incl_buf') and buf not in text_bufs:
+        if buf not in ('input_buf', '_hiuh_incl_buf', '_hiuh_incl_pos', '_hiuh_incl_end', '_hiuh_incl_fp') and buf not in text_bufs:
             data.append(f"{buf}: .skip 256")
     for buf in sorted(text_bufs.values()):
         data.append(f"{buf}: .skip 256")

@@ -1,4 +1,4 @@
-. Test: function definition, GE, ANROPA_RES — expected output: 7
+... Test: function definition, GE, ANROPA_RES — expected output: 7
 Funktion addera med a, b
     Sätt s till a pluss b
     ge s

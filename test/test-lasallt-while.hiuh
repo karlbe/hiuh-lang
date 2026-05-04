@@ -1,0 +1,9 @@
+... LäsAllt + while loop (minimal hang reproducer)
+Deklarera tok som Text
+LäsAllt text i _hiuh_incl_buf
+Läs till tok
+Sålänge tok inte är tom
+    SkrivNyRad text i tok
+    Läs till tok
+Hejdå
+SkrivNyRad ok

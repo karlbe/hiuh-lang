@@ -1,0 +1,9 @@
+... Test Hitta keyword
+Deklarera pos som Heltal
+
+Slåihop input_buf med "hello world"
+Sätt pos till Hitta input_buf med "wor"
+SkrivNyRad värdet av pos
+
+Sätt pos till Hitta input_buf med "xyz"
+SkrivNyRad värdet av pos

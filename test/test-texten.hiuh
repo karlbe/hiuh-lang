@@ -1,10 +1,10 @@
-. Test Om x är texten Y
+... Test Om x är texten Y
 Sätt tok till texten SET
 Om tok är texten SET
     Skriv värdet av tok
 Hejdå
 
-. Test Sålänge with texten (runs once then tok changes)
+... Test Sålänge with texten (runs once then tok changes)
 Sätt tok till texten LOOP
 Sålänge tok är texten LOOP
     SkrivNyRad hej

@@ -1,9 +1,9 @@
-. test-text.hiuh — testar Text-typen
-. Förväntad output:
-.   hej världen
-.   hej världen
-.   1
-.   0
+... test-text.hiuh — testar Text-typen
+... Förväntad output:
+...   hej världen
+...   hej världen
+...   1
+...   0
 
 Sätt hälsning till texten hej världen
 SkrivNyRad värdet av hälsning

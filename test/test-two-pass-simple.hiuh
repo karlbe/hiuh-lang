@@ -1,0 +1,12 @@
+... Minimal test: LäsAllt + read loop
+Deklarera tok som Text
+
+LäsAllt text i _hiuh_incl_buf
+
+... Read tokens from include buffer and print each one
+Läs till tok
+Sålänge tok inte är tom
+    SkrivNyRad text i tok
+    Läs till tok
+Hejdå
+SkrivNyRad done!

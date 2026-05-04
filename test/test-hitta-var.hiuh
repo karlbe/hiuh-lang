@@ -1,17 +1,17 @@
-. test-hitta-var.hiuh — enhetstestning av hitta_var
-. Indata: skriv namnsträngar rad för rad på stdin
-. Rad 1-2: fyller vname0, vname1
-. Rad 3+: slår upp, skriver ut register-index (0-5) eller 99
+... test-hitta-var.hiuh — enhetstestning av hitta_var
+... Indata: skriv namnsträngar rad för rad på stdin
+... Rad 1-2: fyller vname0, vname1
+... Rad 3+: slår upp, skriver ut register-index (0-5) eller 99
 
 Inkludera hitta-var.hiuh
 
-. Fyll symboltabellen med de två första raderna
+... Fyll symboltabellen med de två första raderna
 Läs
 KopieraBuffer input_buf till vname0
 Läs
 KopieraBuffer input_buf till vname1
 
-. Slå upp rad för rad tills EOF
+... Slå upp rad för rad tills EOF
 Läs till las_ok
 Sålänge las_ok är 1
     Sätt res till Anropa hitta_var

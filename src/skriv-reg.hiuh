@@ -1,6 +1,6 @@
-. skriv-reg.hiuh — registernamnsfunktioner för assemblygenerering
+... skriv-reg.hiuh — registernamnsfunktioner för assemblygenerering
 
-. Skriver %rXX (utan komma, utan nyrad) baserat på registerindex 0-5
+... Skriver %rXX (utan komma, utan nyrad) baserat på registerindex 0-5
 Funktion skriv_reg med idx
     Om idx är 0
         Skriv %r12
@@ -26,7 +26,7 @@ Funktion skriv_reg med idx
     ge 0
 Hejdå
 
-. Skriver , %rXX\n baserat på registerindex 0-5
+... Skriver , %rXX\n baserat på registerindex 0-5
 Funktion skriv_komma_reg med idx
     Om idx är 0
         SkrivNyRad , %r12
@@ -52,7 +52,7 @@ Funktion skriv_komma_reg med idx
     ge 0
 Hejdå
 
-. Skriver inc %rXX\n baserat på registerindex 0-5
+... Skriver inc %rXX\n baserat på registerindex 0-5
 Funktion skriv_inc_reg med idx
     Om idx är 0
         SkrivNyRad inc %r12
@@ -78,7 +78,7 @@ Funktion skriv_inc_reg med idx
     ge 0
 Hejdå
 
-. Skriver dec %rXX\n baserat på registerindex 0-5
+... Skriver dec %rXX\n baserat på registerindex 0-5
 Funktion skriv_dec_reg med idx
     Om idx är 0
         SkrivNyRad dec %r12
@@ -104,7 +104,7 @@ Funktion skriv_dec_reg med idx
     ge 0
 Hejdå
 
-. Skriver %rXX\n (med nyrad) baserat på registerindex 0-5
+... Skriver %rXX\n (med nyrad) baserat på registerindex 0-5
 Funktion skriv_reg_nl med idx
     Om idx är 0
         SkrivNyRad %r12
@@ -130,7 +130,7 @@ Funktion skriv_reg_nl med idx
     ge 0
 Hejdå
 
-. Skriver     movb %rXXb, (%rsi)\n baserat på registerindex 0-5
+... Skriver     movb %rXXb, (%rsi)\n baserat på registerindex 0-5
 Funktion skriv_movb_reg8_rsi med idx
     Om idx är 0
         SkrivNyRad     movb %r12b, (%rsi)
@@ -156,8 +156,8 @@ Funktion skriv_movb_reg8_rsi med idx
     ge 0
 Hejdå
 
-. Skriver     mov %rcx/%rdx/%r8/%r9 → slot-register baserat på parameterindex 0-3
-. (param 0 → %r12, param 1 → %r13, param 2/%r8 och 3/%r9 behöver ingen flytt)
+... Skriver     mov %rcx/%rdx/%r8/%r9 → slot-register baserat på parameterindex 0-3
+... (param 0 → %r12, param 1 → %r13, param 2/%r8 och 3/%r9 behöver ingen flytt)
 Funktion skriv_mov_arg_to_slot med idx
     Om idx är 0
         SkrivNyRad     mov %rcx, %r12
@@ -170,7 +170,7 @@ Funktion skriv_mov_arg_to_slot med idx
     ge 0
 Hejdå
 
-. Skriver , %rcx\n / , %rdx\n / , %r8\n / , %r9\n baserat på argumentindex 0-3
+... Skriver , %rcx\n / , %rdx\n / , %r8\n / , %r9\n baserat på argumentindex 0-3
 Funktion skriv_komma_arg_reg_nl med idx
     Om idx är 0
         SkrivNyRad , %rcx
@@ -188,7 +188,7 @@ Funktion skriv_komma_arg_reg_nl med idx
     ge 0
 Hejdå
 
-. Skriver mov %rXX, %rdx\n baserat på registerindex 0-5
+... Skriver mov %rXX, %rdx\n baserat på registerindex 0-5
 Funktion skriv_reg_rdx med idx
     Om idx är 0
         SkrivNyRad mov %r12, %rdx
@@ -214,7 +214,7 @@ Funktion skriv_reg_rdx med idx
     ge 0
 Hejdå
 
-. Skriver (%rip), %rcx\n / (%rip), %rdx\n / (%rip), %r8\n / (%rip), %r9\n baserat på argumentindex 0-3
+... Skriver (%rip), %rcx\n / (%rip), %rdx\n / (%rip), %r8\n / (%rip), %r9\n baserat på argumentindex 0-3
 Funktion skriv_rip_arg_reg_nl med idx
     Om idx är 0
         SkrivNyRad (%rip), %rcx

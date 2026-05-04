@@ -4,6 +4,12 @@
 
 If a language feature is needed to cleanly self-host (i.e. to write the tokenizer or parser in HIUH itself), add that feature to the language. Do not work around missing features with hacks in the pipeline or compiler. The goal is that the pipeline (tokenizer | parser) can eventually compile itself.
 
+## UNBREAKABLE RULES
+
+1. **`och` concatenation must remain one-line syntax.** Patterns like `SkrivNyRad L och label_nr och : .asciz " och text i input_buf och "` must stay as single rows. If the self-hosted parser processes them as raw literals instead of expanding the components, that is a BUG in the parser's SKRIV_NL/SKRIV handlers that must be fixed — by implementing `och` detection and splitting. NEVER "fix" this by replacing och with multiple lines.
+
+2. **No post-processing hacks.** `fix-l1.py` is a temporary workaround for the structural label placement issue. The long-term fix is two-pass compilation or proper label positioning from the parser source itself. Same goes for any other Python script that patches the generated assembly.
+
 ## Compiling HIUH programs
 
 Run from the repo root. `hiuh.cfg` lives next to the compiler in `compiler/`.
@@ -135,11 +141,11 @@ Hejdå
 ```
 Funktion dispatch med idx
     Om idx är 0
-        . do thing for 0
+        ... do thing for 0
         ge 0
     Hejdå
     Om idx är 1
-        . do thing for 1
+        ... do thing for 1
         ge 0
     Hejdå
     ge 0
@@ -150,6 +156,18 @@ Once `ge` executes the function returns and no further `Om` blocks run.
 ### Functions with early `ge` returns are the safe case-dispatch pattern
 
 Whenever you need to do different things based on a value (like dispatching on a slot index or register index), put each case in a function with an early `ge`. This is safer than sequential `Om` blocks because the function exits on the first match. See `alloc-slot.hiuh` and `skriv-reg.hiuh` for examples.
+
+### Comment syntax is `...` (three dots)
+
+Single `.` is NOT a comment — it appears in assembly directives (`.section`, `.text`, `.asciz`).
+Use `...` to start a comment, both at line start and inline:
+
+```
+... This is a full-line comment
+Sätt x till 5   ... inline comment
+```
+
+The tokenizer's `strip_inline_comment` detects three consecutive dots preceded by a space (or at position 0) and nulls the line from that point.
 
 ### Maximum 7 variables per scope
 
@@ -179,14 +197,14 @@ Sålänge condition
     Sätt done till 0
     Om done är 0
         Om state är 0
-            . handle state 0
+            ... handle state 0
             Sätt state till 1
             Sätt done till 1
         Hejdå
     Hejdå
     Om done är 0
         Om state är 1
-            . handle state 1
+            ... handle state 1
             Sätt done till 1
         Hejdå
     Hejdå
@@ -267,12 +285,12 @@ Only use `och` when no part needs a trailing space — e.g. `jne L och label_nr`
 When a `Skriv` line needs a trailing space, use `SPACE` as a placeholder and run
 `fix-trailing-spaces.py` afterwards to replace it with a real space:
 ```
-Skriv leaSPACE    . placeholder — run fix-trailing-spaces.py to get "lea "
+Skriv leaSPACE    ... placeholder — run fix-trailing-spaces.py to get "lea "
 ```
 Run: `python fix-trailing-spaces.py src/hiuh-parser.hiuh`
 
-Do NOT use the inline-comment trick (`Skriv lea  .`) — it is a hack that breaks
-self-hosting because the dot becomes part of the emitted string in some contexts.
+Do NOT use the inline-comment trick (`Skriv lea  ...`) — it is a hack that breaks
+self-hosting because the dots could become part of the emitted string in some contexts.
 
 #### PowerShell: use `Select-Object -First N` instead of `head -N`
 
@@ -314,8 +332,8 @@ between the two halves.
 HIUH has an explicit `Deklarera` keyword for declaring global buffers (Text) and integers (Heltal) before use. This is required for self-hosting:
 
 ```hiuh
-Deklarera tok som Text         . Declare a Text global (256 bytes in .bss)
-Deklarera reg_next som Heltal  . Declare an integer global (8 bytes in .bss)
+Deklarera tok som Text         ... Declare a Text global (256 bytes in .bss)
+Deklarera reg_next som Heltal  ... Declare an integer global (8 bytes in .bss)
 ```
 
 **Rules:**

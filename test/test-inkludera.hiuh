@@ -1,4 +1,4 @@
-. Test Inkludera: pull in helper with a function, call it — expected: 14
+... Test Inkludera: pull in helper with a function, call it — expected: 14
 Inkludera test-inkludera-helper.hiuh
 Sätt v till 7
 Sätt r till Anropa dubbla med v

@@ -1,0 +1,8 @@
+... LäsAllt + 2-read loop
+Deklarera tok som Text
+LäsAllt text i _hiuh_incl_buf
+Läs till tok
+SkrivNyRad text i tok
+Läs till tok
+SkrivNyRad text i tok
+SkrivNyRad ok

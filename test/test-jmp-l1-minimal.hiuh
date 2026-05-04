@@ -1,0 +1,28 @@
+... Minimal test: shows SkrivNyRad jmp L1 + SkrivNyRad L1: placement
+... When tokenized and parsed, L1: lands inside hantera function body,
+... not at the start of the main loop code.
+
+Funktion simple med x
+    ge x
+Hejdå
+
+... main program skeleton - these SkrivNyRad calls generate output assembly
+SkrivNyRad .text
+SkrivNyRad .globl main
+SkrivNyRad main:
+SkrivNyRad push %r12
+SkrivNyRad push %r13
+SkrivNyRad push %rbp
+SkrivNyRad subq $32, %rsp
+SkrivNyRad call SetConsoleOutputCP
+SkrivNyRad jmp L1
+
+... This code should be at L1, but L1 lands in the wrong place
+Sätt x till 0
+Sålänge x är mindre än 3
+    SkrivNyRad loop
+    Öka x
+Hejdå
+
+SkrivNyRad L1:
+SkrivNyRad done

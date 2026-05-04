@@ -1,4 +1,4 @@
-. Minimal: function with no params, returns literal — expected: 42
+... Minimal: function with no params, returns literal — expected: 42
 Funktion get42
     ge 42
 Hejdå

@@ -1,0 +1,33 @@
+... Minimal reproducer for jmp L1 / L1: placement bug.
+... This is what the parser source does:
+...   1. SkrivNyRad jmp L1  →  generates "jmp L1" in output assembly
+...   2. SkrivNyRad L1:      →  generated when first non-FUNKTION/DECLARE token is seen
+...
+... Bug: L1: lands right after hantera's ret, inside GE handler,
+...      so jmp L1 jumps to wrong code. main loop at end is unreachable.
+
+Funktion hello med unused
+    ge unused
+Hejdå
+
+SkrivNyRad .text
+SkrivNyRad .globl main
+SkrivNyRad main:
+SkrivNyRad push %r12
+SkrivNyRad push %r13
+SkrivNyRad push %rbp
+SkrivNyRad subq $32, %rsp
+SkrivNyRad call SetConsoleOutputCP
+SkrivNyRad jmp L1
+
+... --- these should run after L1 but L1 is in wrong place ---
+SkrivNyRad hello:
+SkrivNyRad mov $42, %rax
+SkrivNyRad ret
+SkrivNyRad L1:
+SkrivNyRad call hello
+SkrivNyRad addq $32, %rsp
+SkrivNyRad pop %rbp
+SkrivNyRad pop %r13
+SkrivNyRad pop %r12
+SkrivNyRad ret

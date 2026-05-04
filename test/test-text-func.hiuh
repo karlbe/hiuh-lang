@@ -1,8 +1,8 @@
-. test-text-func.hiuh — testar Text-argument till funktioner
-. Förväntad output:
-.   hej
-.   1
-.   0
+... test-text-func.hiuh — testar Text-argument till funktioner
+... Förväntad output:
+...   hej
+...   1
+...   0
 
 Funktion skriv_text med t är Text
     SkrivNyRad värdet av t

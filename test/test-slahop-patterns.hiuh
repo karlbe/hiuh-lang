@@ -1,0 +1,15 @@
+... Test Slåihop patterns
+Deklarera n som Heltal
+Deklarera tmp som Text
+Sätt n till 42
+
+Slåihop tmp med "hello"
+Slåihop tmp med värdet av n
+SkrivNyRad text i tmp
+
+... Test buffer-to-buffer
+RensaBuffer tmp
+Slåihop tmp med "world"
+Slåihop input_buf med "!"
+Slåihop tmp med text i input_buf
+SkrivNyRad text i tmp

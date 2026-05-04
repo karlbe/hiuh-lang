@@ -1,4 +1,4 @@
-. Test: standalone ANROPA (no return value) — expected output: 5
+... Test: standalone ANROPA (no return value) — expected output: 5
 Funktion skriv_int med n
     SkrivNyRad värdet av n
     ge 0

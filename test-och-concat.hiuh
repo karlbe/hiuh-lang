@@ -1,0 +1,16 @@
+... Minimum test for SkrivNyRad och concatenation
+... Expected output:
+...   L5:
+...   L5: .asciz "hello"
+...   hello42world
+
+Deklarera label_nr som Heltal
+
+Sätt label_nr till 5
+SkrivNyRad L och label_nr och :
+
+Läs
+SkrivNyRad L och label_nr och : .asciz " och text i input_buf och "
+
+Sätt label_nr till 42
+SkrivNyRad hello och label_nr och world

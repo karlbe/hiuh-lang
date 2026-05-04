@@ -1,7 +1,7 @@
-. test-alloc-slot.hiuh — testar alloc_slot
-. Stdin: "alfa\nbeta\n"
-. Förväntad output: 0, 2, 1, 1
-.   (slot för alfa, slot för beta, vname0==alfa, vname2==beta)
+... test-alloc-slot.hiuh — testar alloc_slot
+... Stdin: "alfa\nbeta\n"
+... Förväntad output: 0, 2, 1, 1
+...   (slot för alfa, slot för beta, vname0==alfa, vname2==beta)
 
 Inkludera alloc-slot.hiuh
 

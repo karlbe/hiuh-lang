@@ -1,5 +1,5 @@
-. Test SKRIV (no newline) — expected: foohej\n
-. stdin: hej\n
+... Test SKRIV (no newline) — expected: foohej\n
+... stdin: hej\n
 Läs
 Skriv foo
 SkrivNyRad text i input_buf

@@ -1,0 +1,15 @@
+... Test new keywords: Slåihop, RensaBuffer, LäsAllt, SpolaBuffer
+
+... Use input_buf as the test buffer (it's 256 bytes, enough for test)
+
+... Clear input_buf
+RensaBuffer input_buf
+
+... Concatenate strings into input_buf
+Slåihop input_buf med "hello "
+Slåihop input_buf med "world"
+
+... Flush buffer to stdout
+SpolaBuffer text i input_buf
+
+SkrivNyRad done!

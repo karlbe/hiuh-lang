@@ -1,0 +1,37 @@
+... Test nested Om inside Sålänge with multi-level Om inside
+Funktion test
+Sätt idx till 0
+Sätt träff till 0
+Sätt label_nr till 0
+Sätt idx2 till 0
+Sätt idx3 till 0
+Sålänge träff är 0
+    Sätt label_nr till tecken idx ur input_buf
+    Om label_nr är 0
+        Bryt
+    Hejdå
+    Om label_nr är 32
+        Öka idx
+        Sätt label_nr till tecken idx ur input_buf
+        Om label_nr är 111
+            Öka idx
+            Sätt label_nr till tecken idx ur input_buf
+            Om label_nr är 99
+                Öka idx
+                Sätt label_nr till tecken idx ur input_buf
+                Om label_nr är 104
+                    Öka idx
+                    Sätt label_nr till tecken idx ur input_buf
+                    Om label_nr är 32
+                        Sätt träff till 1
+                        Sätt idx3 till idx minus 4
+                        Sätt idx till idx3
+                    Hejdå
+                Hejdå
+            Hejdå
+        Hejdå
+    Hejdå
+    Öka idx
+Hejdå
+ge 0
+Hejdå
