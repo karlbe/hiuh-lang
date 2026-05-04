@@ -49,7 +49,35 @@ cd g:\hiuh-lang; cmd /c ".\hiuh-tokenizer.exe < src\test.hiuh | .\hiuh-parser.ex
 ```
 cmd.exe does **not** inherit PowerShell's current working directory — use full paths or `.\exe` with explicit cd in the same statement.
 
-Assemble and link:
+### Automated pipeline build: `build-pipeline.ps1`
+
+Instead of running each step manually, use the `build-pipeline.ps1` script which handles compilation, pipeline execution, assembly, and linking with clear output:
+
+```powershell
+# Build parser2.exe from hiuh-parser.hiuh
+.\build-pipeline.ps1 parser2
+
+# Build tokenizer2.exe from hiuh-tokenizer.hiuh
+.\build-pipeline.ps1 tokenizer2
+
+# Build parser2 AND test it with a specific file
+.\build-pipeline.ps1 parser2 test\test-func-main-order.hiuh
+
+# Debug a crash with GDB (shows backtrace and registers)
+.\build-pipeline.ps1 parser2 test\test-func-main-order.hiuh -debug
+```
+
+The script:
+1. Compiles tokenizer with Python compiler (always needed for the pipeline)
+2. Compiles parser with Python compiler (always needed for the pipeline)
+3. Runs the pipeline: `tokenizer | parser > target.s`
+4. Assembles with GNU as: `as.exe -o target.o target.s`
+5. Links with GNU ld: `ld.exe -o target.exe target.o -lmingw32 -lmsvcrt -lkernel32`
+6. Optionally tests the result if an input file is specified
+
+**Output:** Color-coded progress with clear error messages. If any step fails, the script stops and reports the error.
+
+Assemble and link (manual steps):
 ```
 G:\msys64\mingw64\bin\as.exe -o out.o out.s
 G:\msys64\mingw64\bin\ld.exe -o out.exe out.o -lmingw32 -lmsvcrt -lkernel32

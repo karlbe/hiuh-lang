@@ -1,0 +1,8 @@
+Deklarera buf1 som Text
+Deklarera buf2 som Text
+
+Funktion test_copy
+    Läs
+    KopieraBuffer buf1 till buf2
+    ge 0
+Hejdå

@@ -1,0 +1,6 @@
+set pagination off
+break *main+25
+run < tokens.txt
+info registers rip rsp rbp
+disassemble ,+30
+quit

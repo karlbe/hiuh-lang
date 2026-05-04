@@ -1,0 +1,28 @@
+warning: Currently logging to gdb.txt.  Turn the logging off and on to make the new setting effective.
+[New Thread 32992.0x73ac]
+[Thread 32992.0x73ac exited with code 3221225477]
+
+Program terminated with signal SIGSEGV, Segmentation fault.
+The program no longer exists.
+gdb-commands.txt:6: Error in sourced command file:
+No stack.
+warning: Currently logging to gdb.txt.  Turn the logging off and on to make the new setting effective.
+[New Thread 42604.0x6fa4]
+[Thread 42604.0x6fa4 exited with code 0]
+[Inferior 1 (process 42604) exited normally]
+gdb-commands.txt:6: Error in sourced command file:
+No stack.
+warning: Currently logging to gdb.txt.  Turn the logging off and on to make the new setting effective.
+[New Thread 37604.0x7460]
+[Thread 37604.0x7460 exited with code 3221225477]
+
+Program terminated with signal SIGSEGV, Segmentation fault.
+The program no longer exists.
+gdb-commands.txt:6: Error in sourced command file:
+No stack.
+warning: Currently logging to gdb.txt.  Turn the logging off and on to make the new setting effective.
+[New Thread 34576.0x8be4]
+[Thread 34576.0x8be4 exited with code 0]
+[Inferior 1 (process 34576) exited normally]
+gdb-commands.txt:6: Error in sourced command file:
+No stack.
