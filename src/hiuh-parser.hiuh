@@ -178,6 +178,23 @@ Funktion las_skip_label med idx
     ge lo
 Hejdå
 
+... deferred skip for top-level dispatch fallthrough.
+Funktion las_deferred_skip
+    Sätt lo till tecken 0 ur deferred_skip_buf
+    Sätt hi till tecken 1 ur deferred_skip_buf
+    Sätt hi till hi skifta vänster 8
+    Sätt lo till lo pluss hi
+    ge lo
+Hejdå
+
+Funktion lagra_deferred_skip med val
+    Sätt lo till val band 255
+    Lagra lo vid 0 i deferred_skip_buf
+    Sätt hi till val skifta höger 8
+    Lagra hi vid 1 i deferred_skip_buf
+    ge 0
+Hejdå
+
 ... Lagrar input_buf som globalt namn i gn{num}
 Funktion store_global_name med num
     Om num är 0
@@ -854,7 +871,7 @@ Funktion hantera med tok är Text, reg_next
         ... TEXTEN — strcmp variable buffer against literal string
         Sätt träff till Jämför input_buf med TEXTEN
         Om träff är 1
-            Läs                    ... the literal string to compare against
+            Läs
             Sätt label_nr till Anropa las_label_nr
             Sätt idx2 till tecken 0 ur block_depth
             Lagra 1 vid idx2 i block_stack
@@ -863,6 +880,13 @@ Funktion hantera med tok är Text, reg_next
             Minska label_nr
             Öka idx2
             Lagra idx2 vid 0 i block_depth
+            Sätt idx2 till Anropa las_deferred_skip
+            Om idx2 inte är 0
+                Skriv L
+                Skriv värdet av idx2
+                SkrivNyRad :
+                Anropa lagra_deferred_skip med 0
+            Hejdå
             SkrivNyRad .section .rdata
             SkrivNyRad L och label_nr och : .asciz " och text i input_buf och "
             SkrivNyRad .text
@@ -1142,6 +1166,13 @@ Funktion hantera med tok är Text, reg_next
             Om label_nr är 1
                 ... Function END: emit done-label + epilogue
                 Sätt label_nr till Anropa las_done_label
+                Sätt idx2 till Anropa las_deferred_skip
+                Om idx2 inte är 0
+                    Skriv L
+                    Skriv värdet av idx2
+                    SkrivNyRad :
+                    Anropa lagra_deferred_skip med 0
+                Hejdå
                 SkrivNyRad L och label_nr och :
                 SkrivNyRad     addq $32, %rsp
                 SkrivNyRad     pop %rbp
@@ -1171,7 +1202,9 @@ Funktion hantera med tok är Text, reg_next
             Sätt idx2 till Anropa las_loop_top med label_nr
             SkrivNyRad jmp L och idx2
             Öka idx2
-            SkrivNyRad L och idx2 och :
+            Skriv L
+            Skriv värdet av idx2
+            SkrivNyRad :
             ge reg_next
         Hejdå
         Om träff är 2
@@ -1179,13 +1212,22 @@ Funktion hantera med tok är Text, reg_next
             Sätt idx2 till Anropa las_loop_top med label_nr
             SkrivNyRad jmp L och idx2
             Öka idx2
-            SkrivNyRad L och idx2 och :
+            Skriv L
+            Skriv värdet av idx2
+            SkrivNyRad :
             ge reg_next
         Hejdå
         Om träff är 1
-            ... IF END: emit the skip label
+            ... IF END: emit skip label (defer if depth 0)
             Sätt idx2 till Anropa las_skip_label med label_nr
-            SkrivNyRad L och idx2 och :
+            Om label_nr är 0
+                Anropa lagra_deferred_skip med idx2
+            Hejdå
+            Om label_nr inte är 0
+                Skriv L
+                Skriv värdet av idx2
+                SkrivNyRad :
+            Hejdå
             ge reg_next
         Hejdå
         ge reg_next
@@ -1469,7 +1511,9 @@ Funktion hantera med tok är Text, reg_next
                         Hejdå
                         Om träff inte är 1
                             ... Första body-token — dispatcha och avsluta paramloop
+                            Sätt träff till tecken 0 ur block_depth
                             Sätt reg_next till Anropa hantera med tok, reg_next
+                            Lagra träff vid 0 i block_depth
                             Sätt idx till 0
                         Hejdå
                     Hejdå
@@ -1478,7 +1522,9 @@ Funktion hantera med tok är Text, reg_next
         Hejdå
         Om label_nr inte är 1
             ... Ingen MED: tok är första body-token, dispatcha det
+            Sätt träff till tecken 0 ur block_depth
             Sätt reg_next till Anropa hantera med tok, reg_next
+            Lagra träff vid 0 i block_depth
         Hejdå
 
         ... Body-loop: hantera tokens tills func_mode=0 (sätts av END)
